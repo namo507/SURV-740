@@ -1,7 +1,9 @@
 ---
 title: "SURV-740_HW1"
 author: "Namit Shrivastava"
-format: pdf
+format: 
+  pdf:
+    prefer-html: true
 ---
 
 ```{r}
