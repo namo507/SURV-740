@@ -18,7 +18,7 @@ library(knitr)
 
 ## Problem 1 (30 points)
 
-Age and Education for a small sample are provided below for 2 treated units (I = 1, 2) and 2 control units (j = 1, 2). Both covariates are predictive of the outcome of Income (in $10k).
+Age and Education for a small sample are provided below for 2 treated units (I = 1, 2) and 2 control units (j = 1, 2). Both covariates are predictive of the outcome of Income (in \$10k).
 
 ```{r problem1-data}
 # Creating the data
@@ -43,7 +43,7 @@ print(Sigma)
 I need to find the matched control unit j(i) for each treated unit using Mahalanobis distance.
 
 ```{r mahalanobis-matching}
-# Extract covariates for treated and control units
+# Extracting covariates for treated and control units
 treated_covariates <- matrix(c(25, 1, 30, 1), nrow = 2, ncol = 2, byrow = TRUE)
 control_covariates <- matrix(c(30, 0, 40, 1), nrow = 2, ncol = 2, byrow = TRUE)
 
@@ -59,15 +59,15 @@ mahalanobis_dist <- function(x1, x2, Sigma_inv) {
   return(as.numeric(distance))
 }
 
-# Calculate distances for treated unit i=1 to all control units
+# Calculating distances for treated unit i=1 to all control units
 dist_i1_j1 <- mahalanobis_dist(treated_covariates[1,], control_covariates[1,], Sigma_inv)
 dist_i1_j2 <- mahalanobis_dist(treated_covariates[1,], control_covariates[2,], Sigma_inv)
 
-# Calculate distances for treated unit i=2 to all control units
+# Calculating distances for treated unit i=2 to all control units
 dist_i2_j1 <- mahalanobis_dist(treated_covariates[2,], control_covariates[1,], Sigma_inv)
 dist_i2_j2 <- mahalanobis_dist(treated_covariates[2,], control_covariates[2,], Sigma_inv)
 
-# Create distance matrix
+# Creating distance matrix
 distance_matrix <- matrix(c(dist_i1_j1, dist_i1_j2, dist_i2_j1, dist_i2_j2), 
                          nrow = 2, ncol = 2, byrow = TRUE)
 rownames(distance_matrix) <- c("Treated i=1", "Treated i=2")
@@ -76,23 +76,47 @@ colnames(distance_matrix) <- c("Control j=1", "Control j=2")
 print("Distance Matrix:")
 print(distance_matrix)
 
-# Optimal matching
-match_i1 <- which.min(distance_matrix[1,])
-match_i2 <- which.min(distance_matrix[2,])
+# Optimal 1:1 matching using Hungarian algorithm
+# Checking both possible 1:1 assignments
+assignment1_total <- distance_matrix[1,1] + distance_matrix[2,2]  # i=1→j=1, i=2→j=2
+assignment2_total <- distance_matrix[1,2] + distance_matrix[2,1]  # i=1→j=2, i=2→j=1
+
+print(paste("Assignment 1 (i=1→j=1, i=2→j=2) total distance:", round(assignment1_total, 4)))
+print(paste("Assignment 2 (i=1→j=2, i=2→j=1) total distance:", round(assignment2_total, 4)))
+
+# Choosing the assignment with minimum total distance
+if(assignment1_total <= assignment2_total) {
+  optimal_matches <- c(1, 2)  # i=1→j=1, i=2→j=2
+  total_distance <- assignment1_total
+} else {
+  optimal_matches <- c(2, 1)  # i=1→j=2, i=2→j=1
+  total_distance <- assignment2_total
+}
 
 matching_results <- data.frame(
   Matching_Pair = c(1, 2),
   Treated_i = c("i=1", "i=2"),
-  Control_j = c(paste0("j=", match_i1), paste0("j=", match_i2))
+  Control_j = c(paste0("j=", optimal_matches[1]), paste0("j=", optimal_matches[2]))
 )
 
-print("Matching Results:")
+print("Optimal 1:1 Matching Results:")
 print(matching_results)
+print(paste("Total minimum distance:", round(total_distance, 4)))
 ```
 
-Based on my calculations, I found that:
-- Treated unit i=1 matches with Control unit j=1 (distance = `r round(dist_i1_j1, 3)`)
-- Treated unit i=2 matches with Control unit j=2 (distance = `r round(dist_i2_j2, 3)`)
+Based on my calculations using optimal 1:1 matching (Hungarian algorithm), I found that:
+
+Assignment 1 (i=1→j=1, i=2→j=2): Total distance = 5.0960
+
+Assignment 2 (i=1→j=2, i=2→j=1): Total distance = 5.7549
+
+The optimal matching minimizes total distance, so:
+
+Treated unit i=1 matches with Control unit j=1
+
+Treated unit i=2 matches with Control unit j=2
+
+This optimal assignment has a total distance of 5.0960.
 
 ### b) (5 points) Estimate ACE using matched pairs
 
@@ -105,7 +129,7 @@ ACE_matching <- mean(treated_outcomes) - mean(matched_control_outcomes)
 print(paste("ACE using matching:", ACE_matching))
 ```
 
-Using the matched pairs, I calculated the Average Causal Effect (ACE) as the difference between the mean outcomes of treated and matched control units. The ACE is `r ACE_matching` (in $10k), suggesting that the treatment increases income by $`r ACE_matching * 10`k on average.
+Using the matched pairs, I calculated the Average Causal Effect (ACE) as the difference between the mean outcomes of treated and matched control units. The ACE is `r ACE_matching` (in \$10k), suggesting that the treatment increases income by \$`r ACE_matching * 10`k on average.
 
 ### c) (10 points) Propensity Score Weights
 
@@ -130,9 +154,7 @@ print("Propensity Score Weights Table:")
 print(ps_data[, c("Unit", "e_x", "Income", "PS_weight", "Income_w")])
 ```
 
-I calculated the propensity score weights using the formula:
-- For treated units: w = 1/e(x)
-- For control units: w = 1/(1-e(x))
+I calculated the propensity score weights using the formula: - For treated units: w = 1/e(x) - For control units: w = 1/(1-e(x))
 
 ### d) (5 points) Average Causal Effect using Risk Difference
 
@@ -151,7 +173,7 @@ print(paste("Control weighted mean:", round(control_weighted_mean, 3)))
 print(paste("ACE using IPW (Risk Difference):", round(ACE_IPW, 3)))
 ```
 
-Using inverse probability weighting, I estimated the Average Causal Effect as `r round(ACE_IPW, 3)` (in $10k), indicating the treatment effect on income.
+Using inverse probability weighting, I estimated the Average Causal Effect as `r round(ACE_IPW, 3)` (in \$10k), indicating the treatment effect on income.
 
 ## Problem 2 (35 points)
 
@@ -206,7 +228,7 @@ imbalanced_vars <- names(smd_unadj)[abs(smd_unadj) > 0.2]
 print(paste("Variables with SMD > 0.2:", paste(imbalanced_vars, collapse = ", ")))
 ```
 
-I created Table 1 to examine covariate balance between treated and control groups. Variables with SMD > 0.2 indicate substantial imbalance that could bias the treatment effect estimate. These imbalances suggest that patients receiving the new medication differ systematically from those who don't, which could confound the relationship between treatment and outcome.
+I created Table 1 to examine covariate balance between treated and control groups. Variables with SMD \> 0.2 indicate substantial imbalance that could bias the treatment effect estimate. These imbalances suggest that patients receiving the new medication differ systematically from those who don't, which could confound the relationship between treatment and outcome.
 
 ### b) (15 points) Propensity Score Matching
 
@@ -534,7 +556,4 @@ print(round(results_summary, 4))
 
 I estimated the causal RD, RR, and OR using MSM with both unstabilized and stabilized weights. The results show consistency across different methods, which gives me confidence in the causal effect estimates. The MSM approach with stabilized weights provides more efficient estimates while maintaining the same point estimates as the standardization method.
 
-<function_calls>
-<invoke name="manage_todo_list">
-<parameter name="todoList">[{"description": "Load and examine the dataset to understand variables and structure", "id": 1, "title": "Explore hw2Data.csv structure", "status": "completed"}, {"description": "Work through optimal matching and propensity score weighting with given data", "id": 2, "title": "Complete Problem 1", "status": "completed"}, {"description": "Apply propensity score methods to hw2Data.csv including matching and IPW", "id": 3, "title": "Complete Problem 2", "status": "in-progress"}, {"description": "Calculate causal RD, RR, OR using standardization and MSM methods", "id": 4, "title": "Complete Problem 3", "status": "not-started"}, {"description": "Create the final document with all solutions, R code, and results", "id": 5, "title": "Write complete HW2.qmd", "status": "not-started"}]
-
+<function_calls> <invoke name="manage_todo_list"> <parameter name="todoList">\[{"description": "Load and examine the dataset to understand variables and structure", "id": 1, "title": "Explore hw2Data.csv structure", "status": "completed"}, {"description": "Work through optimal matching and propensity score weighting with given data", "id": 2, "title": "Complete Problem 1", "status": "completed"}, {"description": "Apply propensity score methods to hw2Data.csv including matching and IPW", "id": 3, "title": "Complete Problem 2", "status": "in-progress"}, {"description": "Calculate causal RD, RR, OR using standardization and MSM methods", "id": 4, "title": "Complete Problem 3", "status": "not-started"}, {"description": "Create the final document with all solutions, R code, and results", "id": 5, "title": "Write complete HW2.qmd", "status": "not-started"}\]
