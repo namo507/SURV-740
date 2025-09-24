@@ -196,56 +196,54 @@ cat(sprintf("ACE using IPW (RD): %.6f (in $10k units)\n", ACE_IPW))
 
 I will apply propensity score methods to assess the causal effect of New_Medication on Heart_Disease_Incident using the provided dataset.
 
-```{r load-data}
-# Load the dataset
-data2 <- read.csv("/Users/namomac/Desktop/SURV-740/hw2Data.csv")
-
-# Remove the first column (row numbers)
-data2 <- data2[, -1]
-
-# Display basic information about the dataset
-print(paste("Dataset dimensions:", nrow(data2), "rows,", ncol(data2), "columns"))
-print("Variable names:")
-print(names(data2))
-
-# Summary statistics
-print("Summary of all variables:")
-summary(data2)
-
-# Check treatment and outcome distribution
-print("Treatment distribution:")
-table(data2$New_Medication)
-print("Outcome distribution:")
-table(data2$Heart_Disease_Incident)
-```
 
 ### a) (5 points) Descriptive Statistics and Covariate Balance
 
-```{r table1-unadjusted}
-# Create Table 1 - unadjusted
-# Define variables for Table 1
+```{r}
+library(tableone)
+
+# Load data (adjust path if needed)
+data2 <- read.csv("/Users/namomac/Desktop/SURV-740/hw2Data.csv")
+
+# If the first column is an index, drop it safely
+if (ncol(data2) >= 2 && (names(data2)[1] %in% c("X", "V1") || all(data2[[1]] == seq_len(nrow(data2))))) {
+  data2 <- data2[, -1]
+}
+
+# Defining covariates and optionally marking binaries as factors for clearer display
 vars <- c("Age", "Sex", "BMI", "Smoker", "Cholesterol", "BP", "Diabetes")
+factorVars <- c("Sex", "Smoker", "Diabetes")
 
-# Create Table 1
-table1_unadj <- CreateTableOne(vars = vars, 
-                              strata = "New_Medication", 
-                              data = data2,
-                              test = FALSE)
-
-print("Table 1 - Unadjusted Covariate Balance:")
+# Table 1 (unadjusted) with SMDs
+table1_unadj <- CreateTableOne(
+  vars = vars,
+  strata = "New_Medication",
+  data = data2,
+  factorVars = factorVars,
+  test = FALSE
+)
+cat("Table 1 - Unadjusted Covariate Balance:\n")
 print(table1_unadj, smd = TRUE)
 
-# Extract SMDs
+# Extracting SMDs and flag imbalance
 smd_unadj <- ExtractSmd(table1_unadj)
-print("Standardized Mean Differences (Unadjusted):")
-print(smd_unadj)
 
-# Identify variables with SMD > 0.2
-imbalanced_vars <- names(smd_unadj)[abs(smd_unadj) > 0.2]
-print(paste("Variables with SMD > 0.2:", paste(imbalanced_vars, collapse = ", ")))
+# Robust coercion to a named vector
+if (is.matrix(smd_unadj)) {
+  smd_vec <- as.numeric(smd_unadj[, 1])
+  names(smd_vec) <- rownames(smd_unadj)
+} else {
+  smd_vec <- smd_unadj
+}
+
+cutoff <- 0.2
+imbalanced_vars <- names(smd_vec)[abs(smd_vec) > cutoff]
+
+cat(sprintf("\nCovariates with SMD > %.2f:\n", cutoff))
+print(imbalanced_vars)
 ```
 
-I created Table 1 to examine covariate balance between treated and control groups. Variables with SMD \> 0.2 indicate substantial imbalance that could bias the treatment effect estimate. These imbalances suggest that patients receiving the new medication differ systematically from those who don't, which could confound the relationship between treatment and outcome.
+Using the SMD > 0.2 criterion, I flagged Sex, Smoker, and Cholesterol as imbalanced. So, these imbalances indicate that treated patients are more often smokers, have higher cholesterol, and differ in sex composition, all of which are prognostic for heart disease, so a crude treatment–outcome comparison would be confounded and could overstate (or understate) the medication’s effect unless adjustment (e.g., matching or weighting) is applied.
 
 ### b) (15 points) Propensity Score Matching
 
@@ -302,7 +300,7 @@ ate_matching <- mean(treated_outcomes) - mean(control_outcomes)
 print(paste("Average Treatment Effect (Matching):", round(ate_matching, 4)))
 ```
 
-I performed 1:1 propensity score matching and found that matching improved covariate balance substantially. The paired t-test comparing heart disease incidence between matched treated and control groups shows the treatment effect. The matching approach helps control for confounding by ensuring treated and control units have similar propensity scores.
+I estimated propensity scores for each patient using logistic regression with all relevant covariates. I then performed 1:1 nearest-neighbor matching without replacement, pairing each treated patient with a control patient who had a similar propensity score. After matching, I created a new Table 1 and found that covariate balance improved substantially, with all standardized mean differences (SMDs) below 0.15. Finally, I compared heart disease incidence between matched treated and control groups using a paired t-test. The results showed a statistically significant difference (mean difference ≈ 0.155, p < 0.001), indicating that the new medication is associated with a lower risk of heart disease after adjusting for confounding variables.
 
 ### c) (15 points) Inverse Probability Weighting (IPW)
 
