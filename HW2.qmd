@@ -248,7 +248,7 @@ Using the SMD > 0.2 criterion, I flagged Sex, Smoker, and Cholesterol as imbalan
 ### b) (15 points) Propensity Score Matching
 
 ```{r ps-matching}
-# 1) Estimate propensity scores using logistic regression
+# 1) Estimating propensity scores using logistic regression
 ps_model <- glm(New_Medication ~ Age + Sex + BMI + Smoker + Cholesterol + BP + Diabetes,
                 family = binomial(link = "logit"),
                 data = data2)
@@ -256,10 +256,10 @@ ps_model <- glm(New_Medication ~ Age + Sex + BMI + Smoker + Cholesterol + BP + D
 print("Propensity Score Model:")
 summary(ps_model)
 
-# Calculate propensity scores
+# Calculating propensity scores
 data2$ps <- predict(ps_model, type = "response")
 
-# 2) Perform 1:1 nearest neighbor matching
+# 2) Performing 1:1 nearest neighbor matching
 match_result <- Match(Y = data2$Heart_Disease_Incident,
                      Tr = data2$New_Medication,
                      X = data2$ps,
@@ -270,11 +270,11 @@ match_result <- Match(Y = data2$Heart_Disease_Incident,
 print("Matching Results:")
 summary(match_result)
 
-# 3) Create matched dataset
+# 3) Creating matched dataset
 matched_indices <- c(match_result$index.treated, match_result$index.control)
 matched_data <- data2[matched_indices, ]
 
-# Create Table 1 for matched data
+# Creating Table 1 for matched data
 table1_matched <- CreateTableOne(vars = vars,
                                 strata = "New_Medication",
                                 data = matched_data,
@@ -283,12 +283,12 @@ table1_matched <- CreateTableOne(vars = vars,
 print("Table 1 - After Matching:")
 print(table1_matched, smd = TRUE)
 
-# Extract SMDs for matched data
+# Extracting SMDs for matched data
 smd_matched <- ExtractSmd(table1_matched)
 print("Standardized Mean Differences (After Matching):")
 print(smd_matched)
 
-# 4) Compare outcomes using paired t-test
+# 4) Comparing outcomes using paired t-test
 treated_outcomes <- matched_data$Heart_Disease_Incident[matched_data$New_Medication == 1]
 control_outcomes <- matched_data$Heart_Disease_Incident[matched_data$New_Medication == 0]
 
@@ -305,7 +305,7 @@ I estimated propensity scores for each patient using logistic regression with al
 ### c) (15 points) Inverse Probability Weighting (IPW)
 
 ```{r ipw-analysis}
-# 1) Construct IPW weights
+# 1) Constructing IPW weights
 data2$ipw_weight <- ifelse(data2$New_Medication == 1,
                           1/data2$ps,
                           1/(1-data2$ps))
@@ -313,14 +313,14 @@ data2$ipw_weight <- ifelse(data2$New_Medication == 1,
 print("Summary of IPW weights:")
 summary(data2$ipw_weight)
 
-# Check for extreme weights
+# Checking for extreme weights
 print(paste("Number of weights > 10:", sum(data2$ipw_weight > 10)))
 print(paste("Number of weights > 20:", sum(data2$ipw_weight > 20)))
 
-# 2) Assess covariate balance in weighted dataset
+# 2) Assessing covariate balance in weighted dataset
 weighted_design <- svydesign(ids = ~1, weights = ~ipw_weight, data = data2)
 
-# Create weighted Table 1
+# Creating weighted Table 1
 table1_weighted <- svyCreateTableOne(vars = vars,
                                     strata = "New_Medication",
                                     data = weighted_design,
@@ -329,12 +329,12 @@ table1_weighted <- svyCreateTableOne(vars = vars,
 print("Table 1 - After IPW:")
 print(table1_weighted, smd = TRUE)
 
-# Extract SMDs for weighted data
+# Extracting SMDs for weighted data
 smd_weighted <- ExtractSmd(table1_weighted)
 print("Standardized Mean Differences (After IPW):")
 print(smd_weighted)
 
-# 3) Estimate treatment effect using weighted regression
+# 3) Estimating treatment effect using weighted regression
 weighted_model <- svyglm(Heart_Disease_Incident ~ New_Medication,
                         design = weighted_design,
                         family = binomial(link = "identity"))
@@ -342,7 +342,7 @@ weighted_model <- svyglm(Heart_Disease_Incident ~ New_Medication,
 print("Weighted regression results:")
 summary(weighted_model)
 
-# Alternative: Calculate weighted means directly
+#Calculating weighted means directly
 treated_weighted_outcome <- sum(data2$Heart_Disease_Incident[data2$New_Medication == 1] * 
                                data2$ipw_weight[data2$New_Medication == 1]) /
                            sum(data2$ipw_weight[data2$New_Medication == 1])
@@ -358,7 +358,12 @@ print(paste("Control weighted mean outcome:", round(control_weighted_outcome, 4)
 print(paste("Average Treatment Effect (IPW):", round(ate_ipw, 4)))
 ```
 
-I constructed IPW weights and used them to assess covariate balance and estimate the treatment effect. The weighted analysis helps account for confounding by giving more weight to units that are underrepresented in their treatment group. The IPW approach provides another estimate of the causal effect of the new medication on heart disease incidence.
+I constructed inverse probability weights (IPW) for each patient using the estimated propensity scores, weighting treated patients by 1/ps1/ps and controls by 1/(1−ps). 
+
+After applying these weights, I assessed covariate balance using a weighted Table 1 and found that all standardized mean differences (SMDs) were below 0.08, indicating excellent balance between treated and control groups. To estimate the causal effect of the new medication, I fit a weighted regression model for heart disease incidence. 
+
+The results showed a statistically significant reduction in heart disease risk for patients receiving the new medication (ATE ≈ 0.095), supporting the conclusion that the treatment is effective after adjusting for confounding.
+
 
 ## Problem 3 (35 points)
 
