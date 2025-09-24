@@ -121,7 +121,7 @@ This optimal assignment has a total distance of 5.0960.
 ### b) (5 points) Estimate ACE using matched pairs
 
 ```{r ace-matching}
-# Calculate ACE using matched pairs
+# Calculating ACE using matched pairs
 treated_outcomes <- c(15, 22)  # i=1, i=2
 matched_control_outcomes <- c(10, 15)  # j=1, j=2 (based on matching)
 
@@ -129,7 +129,7 @@ ACE_matching <- mean(treated_outcomes) - mean(matched_control_outcomes)
 print(paste("ACE using matching:", ACE_matching))
 ```
 
-Using the matched pairs, I calculated the Average Causal Effect (ACE) as the difference between the mean outcomes of treated and matched control units. The ACE is `r ACE_matching` (in \$10k), suggesting that the treatment increases income by \$`r ACE_matching * 10`k on average.
+Using the matched pairs, the Average Causal Effect (ACE) is the difference between the mean outcomes of treated and matched control units. The ACE is 6 (in $10k), suggesting that the treatment increases income by $60k on average.
 
 ### c) (10 points) Propensity Score Weights
 
