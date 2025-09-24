@@ -133,47 +133,64 @@ Using the matched pairs, the Average Causal Effect (ACE) is the difference betwe
 
 ### c) (10 points) Propensity Score Weights
 
-```{r ps-weights}
+```{r}
 # Given propensity scores and outcomes
 ps_data <- data.frame(
   Unit = c("Treated i=1", "Treated i=2", "Control j=1", "Control j=2"),
-  e_x = c(0.25, 0.4, 0.33, 0.5),
-  Income = c(15, 22, 10, 15),
+  e_x = c(0.25, 0.40, 0.33, 0.50),
+  Income = c(15, 22, 10, 15),   # in $10k
   Treatment = c(1, 1, 0, 0)
 )
 
-# Calculate PS weights
-ps_data$PS_weight <- ifelse(ps_data$Treatment == 1, 
-                           1/ps_data$e_x, 
-                           1/(1-ps_data$e_x))
+# ATE-IPTW (primarily used for this part): w = 1/e for treated; w = 1/(1-e) for controls
+ps_data$w_ATE <- ifelse(ps_data$Treatment == 1, 1 / ps_data$e_x, 1 / (1 - ps_data$e_x))
+ps_data$Income_w_ATE <- ps_data$Income * ps_data$w_ATE
 
-# Calculate Income*weight
-ps_data$Income_w <- ps_data$Income * ps_data$PS_weight
+# Creating the exact table required: PS weight (w) and Income*w under ATE
+table_1c <- ps_data[, c("Unit", "e_x", "Income")]
+table_1c$`PS weight (w)` <- ps_data$w_ATE
+table_1c$`Income*w` <- ps_data$Income_w_ATE
 
-print("Propensity Score Weights Table:")
-print(ps_data[, c("Unit", "e_x", "Income", "PS_weight", "Income_w")])
+cat("Propensity Score Weights Table (ATE-IPTW):\n")
+print(table_1c, row.names = FALSE)
 ```
+```{r}
+# ATT-IPW: treated=1; controls = e/(1-e)
+ps_data$w_ATT <- ifelse(ps_data$Treatment == 1, 1, ps_data$e_x / (1 - ps_data$e_x))
+ps_data$Income_w_ATT <- ps_data$Income * ps_data$w_ATT
 
-I calculated the propensity score weights using the formula: - For treated units: w = 1/e(x) - For control units: w = 1/(1-e(x))
+# Stabilized ATE-IPTW: multiply by marginal P(T=1) and P(T=0)
+p_treated <- mean(ps_data$Treatment)
+ps_data$w_sATE <- ifelse(ps_data$Treatment == 1, p_treated / ps_data$e_x, (1 - p_treated) / (1 - ps_data$e_x))
+ps_data$Income_w_sATE <- ps_data$Income * ps_data$w_sATE
+cat("\nATT-IPW weights:\n")
+print(ps_data[, c("Unit", "e_x", "Income", "Treatment", "w_ATT", "Income_w_ATT")], row.names = FALSE)
+cat("\nStabilized ATE-IPTW weights:\n")
+print(ps_data[, c("Unit", "e_x", "Income", "Treatment", "w_sATE", "Income_w_sATE")], row.names = FALSE)
+```
 
 ### d) (5 points) Average Causal Effect using Risk Difference
 
-```{r ace-ipw}
-# Calculate weighted means
-treated_weighted_mean <- sum(ps_data$Income_w[ps_data$Treatment == 1]) / 
-                        sum(ps_data$PS_weight[ps_data$Treatment == 1])
+```{r}
+# Recomputing ATE-IPTW weights to avoid name mismatches
+ps_data$w_ATE <- ifelse(ps_data$Treatment == 1, 1 / ps_data$e_x, 1 / (1 - ps_data$e_x))
+ps_data$Income_w_ATE <- ps_data$Income * ps_data$w_ATE
 
-control_weighted_mean <- sum(ps_data$Income_w[ps_data$Treatment == 0]) / 
-                        sum(ps_data$PS_weight[ps_data$Treatment == 0])
+# Group-specific denominators (sum of weights)
+den_t <- sum(ps_data$w_ATE[ps_data$Treatment == 1])
+den_c <- sum(ps_data$w_ATE[ps_data$Treatment == 0])
 
+# Weighted means
+treated_weighted_mean  <- sum(ps_data$Income_w_ATE[ps_data$Treatment == 1]) / den_t
+control_weighted_mean  <- sum(ps_data$Income_w_ATE[ps_data$Treatment == 0]) / den_c
+
+# Risk difference (difference in weighted means as for continuous outcomes this is the weighted mean difference)
 ACE_IPW <- treated_weighted_mean - control_weighted_mean
 
-print(paste("Treated weighted mean:", round(treated_weighted_mean, 3)))
-print(paste("Control weighted mean:", round(control_weighted_mean, 3)))
-print(paste("ACE using IPW (Risk Difference):", round(ACE_IPW, 3)))
+cat(sprintf("Treated weighted mean (ATE-IPTW): %.6f\n", treated_weighted_mean))
+cat(sprintf("Control weighted mean (ATE-IPTW): %.6f\n", control_weighted_mean))
+cat(sprintf("ACE using IPW (RD): %.6f (in $10k units)\n", ACE_IPW))
 ```
-
-Using inverse probability weighting, I estimated the Average Causal Effect as `r round(ACE_IPW, 3)` (in \$10k), indicating the treatment effect on income.
 
 ## Problem 2 (35 points)
 
