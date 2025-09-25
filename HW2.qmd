@@ -369,8 +369,10 @@ The results showed a statistically significant reduction in heart disease risk f
 
 I will work with the given data to estimate causal effects using different methods.
 
+
+### a) (10 points) Standardization Method
 ```{r problem3-data}
-# Create the data from the table
+# Creating the data from the table
 data3 <- data.frame(
   L = c(rep(1, 4), rep(0, 4)),
   A = c(1, 1, 0, 0, 1, 1, 0, 0),
@@ -378,7 +380,7 @@ data3 <- data.frame(
   Count = c(108, 252, 24, 16, 20, 30, 40, 10)
 )
 
-# Expand the data
+# Expanding the data
 expanded_data <- data3[rep(row.names(data3), data3$Count), 1:3]
 rownames(expanded_data) <- NULL
 
@@ -407,10 +409,8 @@ with(data3, {
 })
 ```
 
-### a) (10 points) Standardization Method
-
 ```{r standardization}
-# Calculate stratum-specific probabilities
+# Calculating stratum-specific probabilities
 # L=1 stratum
 n_l1_a1 <- 108 + 252  # Total A=1 in L=1
 n_l1_a0 <- 24 + 16    # Total A=0 in L=1
@@ -423,7 +423,7 @@ n_l0_a0 <- 40 + 10    # Total A=0 in L=0
 p_y1_a1_l0 <- 20 / n_l0_a1   # P(Y=1|A=1,L=0)
 p_y1_a0_l0 <- 40 / n_l0_a0   # P(Y=1|A=0,L=0)
 
-# Calculate marginal probabilities of L
+# Calculating marginal probabilities of L
 n_total <- sum(data3$Count)
 n_l1 <- sum(data3$Count[data3$L == 1])
 n_l0 <- sum(data3$Count[data3$L == 0])
@@ -438,7 +438,7 @@ print(paste("P(Y=1|A=0,L=0) =", round(p_y1_a0_l0, 4)))
 print(paste("P(L=1) =", round(p_l1, 4)))
 print(paste("P(L=0) =", round(p_l0, 4)))
 
-# Standardization
+# Standardization Formula
 # E[Y^1] = P(Y=1|A=1,L=1)*P(L=1) + P(Y=1|A=1,L=0)*P(L=0)
 e_y1 <- p_y1_a1_l1 * p_l1 + p_y1_a1_l0 * p_l0
 
@@ -456,12 +456,11 @@ print(paste("Risk Ratio (RR) =", round(causal_rr, 4)))
 print(paste("Odds Ratio (OR) =", round(causal_or, 4)))
 ```
 
-Using standardization, I calculated the causal effects by taking weighted averages of stratum-specific effects, where weights are the marginal probabilities of the confounder L.
 
 ### b) (10 points) MSM Weights Creation
 
 ```{r msm-weights}
-# Calculate propensity scores P(A=1|L)
+# Calculating propensity scores P(A=1|L)
 # For L=1
 n_a1_l1 <- sum(data3$Count[data3$L == 1 & data3$A == 1])
 p_a1_l1 <- n_a1_l1 / n_l1
@@ -479,7 +478,7 @@ print(paste("P(A=1|L=1) =", round(p_a1_l1, 4)))
 print(paste("P(A=1|L=0) =", round(p_a1_l0, 4)))
 print(paste("P(A=1) =", round(p_a1_overall, 4)))
 
-# Create weights for each observation
+# Creating weights for each observation
 data3$ps <- ifelse(data3$L == 1, p_a1_l1, p_a1_l0)
 
 # Unstabilized weights
@@ -502,78 +501,80 @@ print("Summary of stabilized weights:")
 summary(data3$weight_stab)
 ```
 
-I created both unstabilized and stabilized weights for the MSM analysis. Stabilized weights help reduce variance while maintaining consistency of the estimates.
+Ok so I have constructed the MSM’s inverse-probability weights using P(A=1|L) for the denominator and their stabilized versions using the marginal P(A=1) in the numerator, which reduces variance while preserving consistency under correct models . The check that the stabilized weights’ mean is approximately 1 (and sum ≈ N) confirms they are constructed as recommended for MSM estimation in the point-treatment setting .
 
 ### c) (15 points) MSM Estimation using R
 
 ```{r msm-estimation}
-# Create individual-level data with weights
+n_total <- sum(data3$Count)
+n_l1    <- sum(data3$Count[data3$L == 1])
+n_l0    <- sum(data3$Count[data3$L == 0])
+
+n_a1_l1 <- sum(data3$Count[data3$L == 1 & data3$A == 1])
+n_a1_l0 <- sum(data3$Count[data3$L == 0 & data3$A == 1])
+p_a1_l1 <- n_a1_l1 / n_l1
+p_a1_l0 <- n_a1_l0 / n_l0
+
+n_a1_total   <- sum(data3$Count[data3$A == 1])
+p_a1_overall <- n_a1_total / n_total
+
+data3$ps <- ifelse(data3$L == 1, p_a1_l1, p_a1_l0)
+data3$w_ipw  <- ifelse(data3$A == 1, 1 / data3$ps, 1 / (1 - data3$ps))
+data3$sw_ipw <- ifelse(data3$A == 1, p_a1_overall / data3$ps,
+                                   (1 - p_a1_overall) / (1 - data3$ps))
+
+# Expanding to individual-level rows so survey weights apply per subject
 individual_data <- data.frame(
-  L = rep(data3$L, data3$Count),
-  A = rep(data3$A, data3$Count),
-  Y = rep(data3$Y, data3$Count),
-  weight = rep(data3$weight, data3$Count),
-  weight_stab = rep(data3$weight_stab, data3$Count)
+  L          = rep(data3$L, data3$Count),
+  A          = rep(data3$A, data3$Count),
+  Y          = rep(data3$Y, data3$Count),
+  w_ipw      = rep(data3$w_ipw, data3$Count),
+  sw_ipw     = rep(data3$sw_ipw, data3$Count)
 )
 
-print(paste("Individual-level dataset size:", nrow(individual_data)))
+# Survey designs: unstabilized and stabilized
+design_unstab <- svydesign(ids = ~1, weights = ~w_ipw,  data = individual_data)
+design_stab   <- svydesign(ids = ~1, weights = ~sw_ipw, data = individual_data)
 
-# Create survey design objects
-design_unstab <- svydesign(ids = ~1, weights = ~weight, data = individual_data)
-design_stab <- svydesign(ids = ~1, weights = ~weight_stab, data = individual_data)
+# Now using quasibinomial to avoid “non-integer #successes” warnings
+fit_rd_unstab <- svyglm(Y ~ A, design = design_unstab, family = quasibinomial(link = "identity"))
+fit_rd_stab   <- svyglm(Y ~ A, design = design_stab,   family = quasibinomial(link = "identity"))
 
-# 1) Risk Difference (Identity link)
-msm_rd_unstab <- svyglm(Y ~ A, design = design_unstab, family = binomial(link = "identity"))
-msm_rd_stab <- svyglm(Y ~ A, design = design_stab, family = binomial(link = "identity"))
+fit_rr_unstab <- svyglm(Y ~ A, design = design_unstab, family = quasibinomial(link = "log"))
+fit_rr_stab   <- svyglm(Y ~ A, design = design_stab,   family = quasibinomial(link = "log"))
 
-print("MSM Risk Difference (Identity link) - Unstabilized weights:")
-summary(msm_rd_unstab)
-psi_1_unstab <- coef(msm_rd_unstab)["A"]
+fit_or_unstab <- svyglm(Y ~ A, design = design_unstab, family = quasibinomial(link = "logit"))
+fit_or_stab   <- svyglm(Y ~ A, design = design_stab,   family = quasibinomial(link = "logit"))
 
-print("MSM Risk Difference (Identity link) - Stabilized weights:")
-summary(msm_rd_stab)
-psi_1_stab <- coef(msm_rd_stab)["A"]
+# Extracting point estimates and 95% CIs
+est_rd_unstab <- coef(fit_rd_unstab)["A"];  ci_rd_unstab <- confint(fit_rd_unstab)["A", ]
+est_rd_stab   <- coef(fit_rd_stab)["A"];    ci_rd_stab   <- confint(fit_rd_stab)["A", ]
 
-# 2) Risk Ratio (Log link)
-msm_rr_unstab <- svyglm(Y ~ A, design = design_unstab, family = binomial(link = "log"))
-msm_rr_stab <- svyglm(Y ~ A, design = design_stab, family = binomial(link = "log"))
+est_rr_unstab <- exp(coef(fit_rr_unstab)["A"]);  ci_rr_unstab <- exp(confint(fit_rr_unstab)["A", ])
+est_rr_stab   <- exp(coef(fit_rr_stab)["A"]);    ci_rr_stab   <- exp(confint(fit_rr_stab)["A", ])
 
-print("MSM Risk Ratio (Log link) - Unstabilized weights:")
-summary(msm_rr_unstab)
-theta_1_unstab <- coef(msm_rr_unstab)["A"]
-rr_unstab <- exp(theta_1_unstab)
+est_or_unstab <- exp(coef(fit_or_unstab)["A"]);  ci_or_unstab <- exp(confint(fit_or_unstab)["A", ])
+est_or_stab   <- exp(coef(fit_or_stab)["A"]);    ci_or_stab   <- exp(confint(fit_or_stab)["A", ])
 
-print("MSM Risk Ratio (Log link) - Stabilized weights:")
-summary(msm_rr_stab)
-theta_1_stab <- coef(msm_rr_stab)["A"]
-rr_stab <- exp(theta_1_stab)
-
-# 3) Odds Ratio (Logit link)
-msm_or_unstab <- svyglm(Y ~ A, design = design_unstab, family = binomial(link = "logit"))
-msm_or_stab <- svyglm(Y ~ A, design = design_stab, family = binomial(link = "logit"))
-
-print("MSM Odds Ratio (Logit link) - Unstabilized weights:")
-summary(msm_or_unstab)
-beta_1_unstab <- coef(msm_or_unstab)["A"]
-or_unstab <- exp(beta_1_unstab)
-
-print("MSM Odds Ratio (Logit link) - Stabilized weights:")
-summary(msm_or_stab)
-beta_1_stab <- coef(msm_or_stab)["A"]
-or_stab <- exp(beta_1_stab)
-
-# Summary of results
-results_summary <- data.frame(
-  Method = c("Standardization", "MSM Unstabilized", "MSM Stabilized"),
-  Risk_Difference = c(causal_rd, psi_1_unstab, psi_1_stab),
-  Risk_Ratio = c(causal_rr, rr_unstab, rr_stab),
-  Odds_Ratio = c(causal_or, or_unstab, or_stab)
+out_list <- list(
+  RD_unstab = c(estimate = est_rd_unstab,  lcl = ci_rd_unstab[1],  ucl = ci_rd_unstab[2]),
+  RD_stab   = c(estimate = est_rd_stab,    lcl = ci_rd_stab[1],    ucl = ci_rd_stab[2]),
+  RR_unstab = c(estimate = est_rr_unstab,  lcl = ci_rr_unstab[1],  ucl = ci_rr_unstab[2]),
+  RR_stab   = c(estimate = est_rr_stab,    lcl = ci_rr_stab[1],    ucl = ci_rr_stab[2]),
+  OR_unstab = c(estimate = est_or_unstab,  lcl = ci_or_unstab[1],  ucl = ci_or_unstab[2]),
+  OR_stab   = c(estimate = est_or_stab,    lcl = ci_or_stab[1],    ucl = ci_or_stab[2])
 )
 
-print("Summary of all results:")
-print(round(results_summary, 4))
+res_df <- as.data.frame(do.call(rbind, out_list))
+res_df_round <- round(res_df, 4)
+print(res_df_round)
 ```
 
-I estimated the causal RD, RR, and OR using MSM with both unstabilized and stabilized weights. The results show consistency across different methods, which gives me confidence in the causal effect estimates. The MSM approach with stabilized weights provides more efficient estimates while maintaining the same point estimates as the standardization method.
+So, looking at my MSM estimation results, I found that all three causal effect measures are consistent across both unstabilized and stabilized weights, which gives me confidence in the analysis. 
 
-<function_calls> <invoke name="manage_todo_list"> <parameter name="todoList">\[{"description": "Load and examine the dataset to understand variables and structure", "id": 1, "title": "Explore hw2Data.csv structure", "status": "completed"}, {"description": "Work through optimal matching and propensity score weighting with given data", "id": 2, "title": "Complete Problem 1", "status": "completed"}, {"description": "Apply propensity score methods to hw2Data.csv including matching and IPW", "id": 3, "title": "Complete Problem 2", "status": "in-progress"}, {"description": "Calculate causal RD, RR, OR using standardization and MSM methods", "id": 4, "title": "Complete Problem 3", "status": "not-started"}, {"description": "Create the final document with all solutions, R code, and results", "id": 5, "title": "Write complete HW2.qmd", "status": "not-started"}\]
+The risk difference (RD) of -0.32 tells me that treatment A reduces the probability of outcome Y by 32 percentage points. The risk ratio (RR) of 0.50 indicates that treated individuals have half the risk compared to untreated individuals. 
+
+Finally, the odds ratio (OR) of 0.2647 shows a strong protective effect, meaning the odds of the outcome occurring are about 73% lower in the treated group. 
+
+What's particularly reassuring is that these MSM results perfectly match my earlier standardization estimates, confirming that both methods are identifying the same causal effects. 
+The confidence intervals don't include the null values (0 for RD, 1 for RR and OR), indicating that all effects are statistically significant and suggesting that treatment A has a substantial beneficial impact on preventing outcome Y.
