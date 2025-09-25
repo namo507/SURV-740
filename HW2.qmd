@@ -23,7 +23,8 @@ Age and Education for a small sample are provided below for 2 treated units (I =
 ```{r problem1-data}
 # Creating the data
 data1 <- data.frame(
-  Unit = c("Treated i=1", "Treated i=2", "Control j=1", "Control j=2"),
+  Unit = c("Treated i=1", "Treated i=2", 
+  "Control j=1", "Control j=2"),
   Age = c(25, 30, 30, 40),
   Edu = c(1, 1, 0, 1),
   Income = c(15, 22, 10, 15),
@@ -44,8 +45,10 @@ I need to find the matched control unit j(i) for each treated unit using Mahalan
 
 ```{r mahalanobis-matching}
 # Extracting covariates for treated and control units
-treated_covariates <- matrix(c(25, 1, 30, 1), nrow = 2, ncol = 2, byrow = TRUE)
-control_covariates <- matrix(c(30, 0, 40, 1), nrow = 2, ncol = 2, byrow = TRUE)
+treated_covariates <- matrix(c(25, 1, 30, 1), 
+nrow = 2, ncol = 2, byrow = TRUE)
+control_covariates <- matrix(c(30, 0, 40, 1), 
+nrow = 2, ncol = 2, byrow = TRUE)
 
 # Inverse of covariance matrix
 Sigma_inv <- solve(Sigma)
@@ -60,15 +63,20 @@ mahalanobis_dist <- function(x1, x2, Sigma_inv) {
 }
 
 # Calculating distances for treated unit i=1 to all control units
-dist_i1_j1 <- mahalanobis_dist(treated_covariates[1,], control_covariates[1,], Sigma_inv)
-dist_i1_j2 <- mahalanobis_dist(treated_covariates[1,], control_covariates[2,], Sigma_inv)
+dist_i1_j1 <- mahalanobis_dist(treated_covariates[1,], 
+control_covariates[1,], Sigma_inv)
+dist_i1_j2 <- mahalanobis_dist(treated_covariates[1,], 
+control_covariates[2,], Sigma_inv)
 
 # Calculating distances for treated unit i=2 to all control units
-dist_i2_j1 <- mahalanobis_dist(treated_covariates[2,], control_covariates[1,], Sigma_inv)
-dist_i2_j2 <- mahalanobis_dist(treated_covariates[2,], control_covariates[2,], Sigma_inv)
+dist_i2_j1 <- mahalanobis_dist(treated_covariates[2,], 
+control_covariates[1,], Sigma_inv)
+dist_i2_j2 <- mahalanobis_dist(treated_covariates[2,], 
+control_covariates[2,], Sigma_inv)
 
 # Creating distance matrix
-distance_matrix <- matrix(c(dist_i1_j1, dist_i1_j2, dist_i2_j1, dist_i2_j2), 
+distance_matrix <- matrix(c(dist_i1_j1, dist_i1_j2, 
+dist_i2_j1, dist_i2_j2), 
                          nrow = 2, ncol = 2, byrow = TRUE)
 rownames(distance_matrix) <- c("Treated i=1", "Treated i=2")
 colnames(distance_matrix) <- c("Control j=1", "Control j=2")
@@ -78,11 +86,15 @@ print(distance_matrix)
 
 # Optimal 1:1 matching using Hungarian algorithm
 # Checking both possible 1:1 assignments
-assignment1_total <- distance_matrix[1,1] + distance_matrix[2,2]  # i=1→j=1, i=2→j=2
-assignment2_total <- distance_matrix[1,2] + distance_matrix[2,1]  # i=1→j=2, i=2→j=1
+assignment1_total <- distance_matrix[1,1] + 
+distance_matrix[2,2]  # i=1→j=1, i=2→j=2
+assignment2_total <- distance_matrix[1,2] + 
+distance_matrix[2,1]  # i=1→j=2, i=2→j=1
 
-print(paste("Assignment 1 (i=1→j=1, i=2→j=2) total distance:", round(assignment1_total, 4)))
-print(paste("Assignment 2 (i=1→j=2, i=2→j=1) total distance:", round(assignment2_total, 4)))
+print(paste("Assignment 1 (i=1→j=1, i=2→j=2) total distance:", 
+round(assignment1_total, 4)))
+print(paste("Assignment 2 (i=1→j=2, i=2→j=1) total distance:", 
+round(assignment2_total, 4)))
 
 # Choosing the assignment with minimum total distance
 if(assignment1_total <= assignment2_total) {
@@ -96,12 +108,14 @@ if(assignment1_total <= assignment2_total) {
 matching_results <- data.frame(
   Matching_Pair = c(1, 2),
   Treated_i = c("i=1", "i=2"),
-  Control_j = c(paste0("j=", optimal_matches[1]), paste0("j=", optimal_matches[2]))
+  Control_j = c(paste0("j=", optimal_matches[1]), paste0("j=", 
+  optimal_matches[2]))
 )
 
 print("Optimal 1:1 Matching Results:")
 print(matching_results)
-print(paste("Total minimum distance:", round(total_distance, 4)))
+print(paste("Total minimum distance:", 
+round(total_distance, 4)))
 ```
 
 Based on my calculations using optimal 1:1 matching (Hungarian algorithm), I found that:
@@ -143,7 +157,8 @@ ps_data <- data.frame(
 )
 
 # ATE-IPTW (primarily used for this part): w = 1/e for treated; w = 1/(1-e) for controls
-ps_data$w_ATE <- ifelse(ps_data$Treatment == 1, 1 / ps_data$e_x, 1 / (1 - ps_data$e_x))
+ps_data$w_ATE <- ifelse(ps_data$Treatment == 1, 1 / ps_data$e_x, 
+1 / (1 - ps_data$e_x))
 ps_data$Income_w_ATE <- ps_data$Income * ps_data$w_ATE
 
 # Creating the exact table required: PS weight (w) and Income*w under ATE
@@ -161,19 +176,23 @@ ps_data$Income_w_ATT <- ps_data$Income * ps_data$w_ATT
 
 # Stabilized ATE-IPTW: multiply by marginal P(T=1) and P(T=0)
 p_treated <- mean(ps_data$Treatment)
-ps_data$w_sATE <- ifelse(ps_data$Treatment == 1, p_treated / ps_data$e_x, (1 - p_treated) / (1 - ps_data$e_x))
+ps_data$w_sATE <- ifelse(ps_data$Treatment == 1, p_treated / ps_data$e_x, 
+(1 - p_treated) / (1 - ps_data$e_x))
 ps_data$Income_w_sATE <- ps_data$Income * ps_data$w_sATE
 cat("\nATT-IPW weights:\n")
-print(ps_data[, c("Unit", "e_x", "Income", "Treatment", "w_ATT", "Income_w_ATT")], row.names = FALSE)
+print(ps_data[, c("Unit", "e_x", "Income", "Treatment", "w_ATT", "Income_w_ATT")], 
+row.names = FALSE)
 cat("\nStabilized ATE-IPTW weights:\n")
-print(ps_data[, c("Unit", "e_x", "Income", "Treatment", "w_sATE", "Income_w_sATE")], row.names = FALSE)
+print(ps_data[, c("Unit", "e_x", "Income", "Treatment", "w_sATE", "Income_w_sATE")], 
+row.names = FALSE)
 ```
 
 ### d) (5 points) Average Causal Effect using Risk Difference
 
 ```{r}
 # Recomputing ATE-IPTW weights to avoid name mismatches
-ps_data$w_ATE <- ifelse(ps_data$Treatment == 1, 1 / ps_data$e_x, 1 / (1 - ps_data$e_x))
+ps_data$w_ATE <- ifelse(ps_data$Treatment == 1, 
+1 / ps_data$e_x, 1 / (1 - ps_data$e_x))
 ps_data$Income_w_ATE <- ps_data$Income * ps_data$w_ATE
 
 # Group-specific denominators (sum of weights)
@@ -206,7 +225,8 @@ library(tableone)
 data2 <- read.csv("/Users/namomac/Desktop/SURV-740/hw2Data.csv")
 
 # If the first column is an index, drop it safely
-if (ncol(data2) >= 2 && (names(data2)[1] %in% c("X", "V1") || all(data2[[1]] == seq_len(nrow(data2))))) {
+if (ncol(data2) >= 2 && (names(data2)[1] %in% c("X", "V1") || 
+all(data2[[1]] == seq_len(nrow(data2))))) {
   data2 <- data2[, -1]
 }
 
@@ -271,7 +291,8 @@ print("Matching Results:")
 summary(match_result)
 
 # 3) Creating matched dataset
-matched_indices <- c(match_result$index.treated, match_result$index.control)
+matched_indices <- c(match_result$index.treated, 
+match_result$index.control)
 matched_data <- data2[matched_indices, ]
 
 # Creating Table 1 for matched data
@@ -535,36 +556,56 @@ individual_data <- data.frame(
 )
 
 # Survey designs: unstabilized and stabilized
-design_unstab <- svydesign(ids = ~1, weights = ~w_ipw,  data = individual_data)
-design_stab   <- svydesign(ids = ~1, weights = ~sw_ipw, data = individual_data)
+design_unstab <- svydesign(ids = ~1, weights = ~w_ipw,  
+data = individual_data)
+design_stab   <- svydesign(ids = ~1, weights = ~sw_ipw, 
+data = individual_data)
 
 # Now using quasibinomial to avoid “non-integer #successes” warnings
-fit_rd_unstab <- svyglm(Y ~ A, design = design_unstab, family = quasibinomial(link = "identity"))
-fit_rd_stab   <- svyglm(Y ~ A, design = design_stab,   family = quasibinomial(link = "identity"))
+fit_rd_unstab <- svyglm(Y ~ A, design = design_unstab, 
+family = quasibinomial(link = "identity"))
+fit_rd_stab   <- svyglm(Y ~ A, design = design_stab,   
+family = quasibinomial(link = "identity"))
 
-fit_rr_unstab <- svyglm(Y ~ A, design = design_unstab, family = quasibinomial(link = "log"))
-fit_rr_stab   <- svyglm(Y ~ A, design = design_stab,   family = quasibinomial(link = "log"))
+fit_rr_unstab <- svyglm(Y ~ A, design = design_unstab, 
+family = quasibinomial(link = "log"))
+fit_rr_stab   <- svyglm(Y ~ A, design = design_stab,   
+family = quasibinomial(link = "log"))
 
-fit_or_unstab <- svyglm(Y ~ A, design = design_unstab, family = quasibinomial(link = "logit"))
-fit_or_stab   <- svyglm(Y ~ A, design = design_stab,   family = quasibinomial(link = "logit"))
+fit_or_unstab <- svyglm(Y ~ A, design = design_unstab, 
+family = quasibinomial(link = "logit"))
+fit_or_stab   <- svyglm(Y ~ A, design = design_stab,   
+family = quasibinomial(link = "logit"))
 
 # Extracting point estimates and 95% CIs
-est_rd_unstab <- coef(fit_rd_unstab)["A"];  ci_rd_unstab <- confint(fit_rd_unstab)["A", ]
-est_rd_stab   <- coef(fit_rd_stab)["A"];    ci_rd_stab   <- confint(fit_rd_stab)["A", ]
+est_rd_unstab <- coef(fit_rd_unstab)["A"];  
+ci_rd_unstab <- confint(fit_rd_unstab)["A", ]
+est_rd_stab   <- coef(fit_rd_stab)["A"];    
+ci_rd_stab   <- confint(fit_rd_stab)["A", ]
 
-est_rr_unstab <- exp(coef(fit_rr_unstab)["A"]);  ci_rr_unstab <- exp(confint(fit_rr_unstab)["A", ])
-est_rr_stab   <- exp(coef(fit_rr_stab)["A"]);    ci_rr_stab   <- exp(confint(fit_rr_stab)["A", ])
+est_rr_unstab <- exp(coef(fit_rr_unstab)["A"]);  
+ci_rr_unstab <- exp(confint(fit_rr_unstab)["A", ])
+est_rr_stab   <- exp(coef(fit_rr_stab)["A"]);    
+ci_rr_stab   <- exp(confint(fit_rr_stab)["A", ])
 
-est_or_unstab <- exp(coef(fit_or_unstab)["A"]);  ci_or_unstab <- exp(confint(fit_or_unstab)["A", ])
-est_or_stab   <- exp(coef(fit_or_stab)["A"]);    ci_or_stab   <- exp(confint(fit_or_stab)["A", ])
+est_or_unstab <- exp(coef(fit_or_unstab)["A"]);  
+ci_or_unstab <- exp(confint(fit_or_unstab)["A", ])
+est_or_stab   <- exp(coef(fit_or_stab)["A"]);    
+ci_or_stab   <- exp(confint(fit_or_stab)["A", ])
 
 out_list <- list(
-  RD_unstab = c(estimate = est_rd_unstab,  lcl = ci_rd_unstab[1],  ucl = ci_rd_unstab[2]),
-  RD_stab   = c(estimate = est_rd_stab,    lcl = ci_rd_stab[1],    ucl = ci_rd_stab[2]),
-  RR_unstab = c(estimate = est_rr_unstab,  lcl = ci_rr_unstab[1],  ucl = ci_rr_unstab[2]),
-  RR_stab   = c(estimate = est_rr_stab,    lcl = ci_rr_stab[1],    ucl = ci_rr_stab[2]),
-  OR_unstab = c(estimate = est_or_unstab,  lcl = ci_or_unstab[1],  ucl = ci_or_unstab[2]),
-  OR_stab   = c(estimate = est_or_stab,    lcl = ci_or_stab[1],    ucl = ci_or_stab[2])
+  RD_unstab = c(estimate = est_rd_unstab,  
+  lcl = ci_rd_unstab[1],  ucl = ci_rd_unstab[2]),
+  RD_stab   = c(estimate = est_rd_stab,    
+  lcl = ci_rd_stab[1],    ucl = ci_rd_stab[2]),
+  RR_unstab = c(estimate = est_rr_unstab,  
+  lcl = ci_rr_unstab[1],  ucl = ci_rr_unstab[2]),
+  RR_stab   = c(estimate = est_rr_stab,    
+  lcl = ci_rr_stab[1],    ucl = ci_rr_stab[2]),
+  OR_unstab = c(estimate = est_or_unstab,  
+  lcl = ci_or_unstab[1],  ucl = ci_or_unstab[2]),
+  OR_stab   = c(estimate = est_or_stab,    
+  lcl = ci_or_stab[1],    ucl = ci_or_stab[2])
 )
 
 res_df <- as.data.frame(do.call(rbind, out_list))
