@@ -501,7 +501,9 @@ print("Summary of stabilized weights:")
 summary(data3$weight_stab)
 ```
 
-Ok so I have constructed the MSM’s inverse-probability weights using P(A=1|L) for the denominator and their stabilized versions using the marginal P(A=1) in the numerator, which reduces variance while preserving consistency under correct models . The check that the stabilized weights’ mean is approximately 1 (and sum ≈ N) confirms they are constructed as recommended for MSM estimation in the point-treatment setting .
+Ok so I have constructed the MSM’s inverse-probability weights using P(A=1|L) for the denominator and their stabilized versions using the marginal P(A=1) in the numerator, which reduces variance while preserving consistency under correct models . The check that the stabilized weights’ mean is approximately 1 (and sum ≈ N) confirms they are constructed as recommended for MSM estimation in the point-treatment setting.
+
+
 
 ### c) (15 points) MSM Estimation using R
 
