@@ -605,7 +605,7 @@ out_list <- list(
   OR_unstab = c(estimate = est_or_unstab,  
   lcl = ci_or_unstab[1],  ucl = ci_or_unstab[2]),
   OR_stab   = c(estimate = est_or_stab,    
-  lcl = ci_or_stab[1],    ucl = ci_or_stab[2])
+lcl = ci_or_stab[1],    ucl = ci_or_stab[2])
 )
 
 res_df <- as.data.frame(do.call(rbind, out_list))
