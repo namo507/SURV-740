@@ -124,11 +124,11 @@ Based on the mixture equation analysis under the monotonicity assumption, I foun
 
 For never-takers (NN stratum where students are off track regardless of SSC offer), the bounds for $\theta_{00}^{(0)} = E[Y^0|\text{Never-takers}]$ are [`r sprintf("%.3f", bounds_NN[1])`, `r sprintf("%.3f", bounds_NN[2])`]. These bounds are derived by allowing compliers' graduation rate under control ($\theta_{01}^{(0)}$) to vary between 0 and 1. When $\theta_{01}^{(0)} = 1$, we get the lower bound of `r sprintf("%.3f", bounds_NN[1])`, and when $\theta_{01}^{(0)} = 0$, we get the upper bound of `r sprintf("%.3f", bounds_NN[2])`.
 
-For the YN stratum (defiers), $\theta_{10}^{(0)}$ has vacuous bounds [`r sprintf("%.0f", bounds_YN[1])`, `r sprintf("%.0f", bounds_YN[2])`] since this stratum doesn't exist under the monotonicity assumption. These bounds represent the range of possible values for the mean potential outcomes under control that are consistent with the observed SSC data and the monotonicity assumption.
+For the YN stratum (defiers), $\theta_{10}^{(0)}$ has vacuous bounds [`r sprintf("%.0f", bounds_YN[1])`, `r sprintf("%.0f", bounds_YN[2])`] since this stratum doesn't exist under the monotonicity assumption. 
 
-## Problem 2
+Hence, these bounds represent the range of possible values for the mean potential outcomes under control that are consistent with the observed SSC data and the monotonicity assumption.
 
-We have the following variables:
+## Problem 2 We have the following variables:
 
 - $Z$: Receipt of letter from physician to encourage flu shot  
   $$Z = \begin{cases}
@@ -162,7 +162,7 @@ What are the impacts of the physician's encouragement letter on hospitalization 
 ### 1. Define the principal strata
 
 ```{r problem2-strata}
-# Principal strata are defined by potential treatment values under both instrument values
+# Here, the Principal strata are defined by potential treatment values under both instrument values
 cat("Principal Strata Definitions:\n")
 cat("1. Never-takers (NN): A⁰ = 0, A¹ = 0\n")
 cat("   - Would not take flu shot regardless of letter\n\n")
@@ -188,7 +188,7 @@ cat("- Never-takers (NN): A⁰=0, A¹=0 → Under Z=1, they wouldn't take shot �
 cat("- Defiers (AN): A⁰=1, A¹=0 → Under Z=1, they wouldn't take shot ✗\n")
 ```
 
-For individuals who received the physician's encouragement letter and took the flu shot (Z=1, A=1), they could belong to either the compliers stratum (who take the shot only when encouraged) or the always-takers stratum (who would take the shot regardless). They cannot be never-takers or defiers because both of these groups would not take the shot when Z=1.
+So, for individuals who received the physician's encouragement letter and took the flu shot (Z=1, A=1), they could belong to either the compliers stratum (who take the shot only when encouraged) or the always-takers stratum (who would take the shot regardless). They cannot be never-takers or defiers because both of these groups would not take the shot when Z=1.
 
 ### 3. Possible observed values for principal stratum AT (Always-takers)
 
@@ -226,97 +226,139 @@ cat("- Could affect healthcare seeking behavior beyond just flu shots\n")
 cat("- Physician contact itself might influence hospitalization patterns\n")
 ```
 
-I find the monotonicity assumption quite plausible in this context because it's reasonable to expect that a physician's encouraging letter would only increase (or have no effect on) flu shot uptake, rather than discourage it. However, the exclusion restriction is more questionable because the physician's letter might have direct effects on hospitalization beyond just encouraging flu shots - it could influence other health behaviors, increase healthcare engagement, or have psychological effects on patient wellbeing.
+I find the monotonicity assumption quite plausible in this context because it's reasonable to expect that a physician's encouraging letter would only increase (or have no effect on) flu shot uptake, rather than discourage it. However, the exclusion restriction is more questionable because the physician's letter might have direct effects on hospitalization beyond just encouraging flu shots, it could influence other health behaviors, increase healthcare engagement, or have psychological effects on patient wellbeing.
 
 ### 5. Estimation using principal stratification and instrumental variables
 
 ```{r problem2-estimation}
 # Given data
-p_za <- matrix(c(0.30, 0.70,  # P(A=0|Z=0), P(A=1|Z=0)
-                 0.10, 0.90), # P(A=0|Z=1), P(A=1|Z=1)
-               nrow=2, byrow=TRUE)
+p_00 <- 0.30  # P(A=0|Z=0)
+p_01 <- 0.70  # P(A=1|Z=0)  
+p_10 <- 0.10  # P(A=0|Z=1)
+p_11 <- 0.90  # P(A=1|Z=1)
 
-theta_za <- matrix(c(0.10, 0.08,  # P(Y=1|Z=0,A=0), P(Y=1|Z=0,A=1)
-                     0.20, 0.15), # P(Y=1|Z=1,A=0), P(Y=1|Z=1,A=1)
-                   nrow=2, byrow=TRUE)
+theta_00 <- 0.10  # P(Y=1|Z=0,A=0)
+theta_01 <- 0.08  # P(Y=1|Z=0,A=1)
+theta_10 <- 0.20  # P(Y=1|Z=1,A=0)
+theta_11 <- 0.15  # P(Y=1|Z=1,A=1)
+
+cat("DATA SUMMARY:\n")
+cat(sprintf("P(A=1|Z=0) = %.2f, P(A=1|Z=1) = %.2f\n", p_01, p_11))
+cat(sprintf("P(Y=1|Z=0,A=0) = %.2f, P(Y=1|Z=0,A=1) = %.2f\n", theta_00, theta_01))
+cat(sprintf("P(Y=1|Z=1,A=0) = %.2f, P(Y=1|Z=1,A=1) = %.2f\n\n", theta_10, theta_11))
+
+cat("STEP 1: COMPUTE PRINCIPAL STRATA PROPORTIONS\n")
+cat("Under monotonicity assumption (no defiers), we have three strata: NT, C, AT\n\n")
+
+# Principal strata proportions under monotonicity
+pi_AT <- p_01  # Always-takers: P(A=1|Z=0) = 0.70
+pi_NT <- p_10  # Never-takers: P(A=0|Z=1) = 0.10  
+pi_C <- p_11 - p_01  # Compliers: P(A=1|Z=1) - P(A=1|Z=0) = 0.90 - 0.70 = 0.20
+
+cat(sprintf("π_NT (Never-takers) = %.2f\n", pi_NT))
+cat(sprintf("π_C (Compliers) = %.2f\n", pi_C))
+cat(sprintf("π_AT (Always-takers) = %.2f\n", pi_AT))
+cat(sprintf("Total = %.2f (check)\n\n", pi_NT + pi_C + pi_AT))
 
 cat("METHOD 1: PRINCIPAL STRATIFICATION\n")
-cat("Under monotonicity assumption, only NN, NY, AY strata exist\n\n")
+cat("Apply exclusion restriction: Z affects Y only through A\n")
+cat("For AT and NT: θ^(1) = θ^(0) since their A doesn't change\n\n")
 
-# Compute stratum proportions
-# P(A=1|Z=1) - P(A=1|Z=0) = P(Compliers)
-p_compliers <- p_za[2,2] - p_za[1,2]  # P(A=1|Z=1) - P(A=1|Z=0)
-p_always <- p_za[1,2]  # P(A=1|Z=0) = P(Always-takers)
-p_never <- 1 - p_compliers - p_always  # P(Never-takers)
+# Step 1: Identifying rates for AT and NT using exclusion restriction
+# (Z=1,A=0) consists only of Never-takers
+theta_NT_0 <- theta_10  # = theta_NT_1 by exclusion restriction
+theta_NT_1 <- theta_NT_0
 
-cat(sprintf("P(Never-takers) = %.2f\n", p_never))
-cat(sprintf("P(Compliers) = %.2f\n", p_compliers))  
-cat(sprintf("P(Always-takers) = %.2f\n\n", p_always))
+# (Z=0,A=1) consists only of Always-takers  
+theta_AT_0 <- theta_01  # = theta_AT_1 by exclusion restriction
+theta_AT_1 <- theta_AT_0
 
-# For compliers, we can identify the causal effect
-# P(Y=1|Z=1,A=0) identifies outcome for never-takers under A=0
-# P(Y=1|Z=0,A=1) identifies outcome for always-takers under A=1
-# P(Y=1|Z=1,A=1) is mixture of compliers under A=1 and always-takers under A=1
-# P(Y=1|Z=0,A=0) is mixture of never-takers under A=0 and compliers under A=0
+cat("Identified rates using exclusion restriction:\n")
+cat(sprintf("θ_NT^(0) = θ_NT^(1) = %.3f (from P(Y=1|Z=1,A=0))\n", theta_NT_0))
+cat(sprintf("θ_AT^(0) = θ_AT^(1) = %.3f (from P(Y=1|Z=0,A=1))\n\n", theta_AT_0))
 
-# Never-takers under control: Y⁰ for NN
-theta_nn_0 <- theta_za[2,1]  # P(Y=1|Z=1,A=0)
+# Step 2: Solving mixture equations for Compliers
+# (Z=0,A=0) is mixture of NT and C
+weight_NT_in_z0a0 <- pi_NT / p_00  # = 0.10/0.30 = 1/3
+weight_C_in_z0a0 <- pi_C / p_00    # = 0.20/0.30 = 2/3
 
-# Always-takers under treatment: Y¹ for AY  
-theta_ay_1 <- theta_za[1,2]  # P(Y=1|Z=0,A=1)
+cat("Mixture equation for (Z=0,A=0):\n")
+cat(sprintf("θ_00 = π_NT/p_00 × θ_NT^(0) + π_C/p_00 × θ_C^(0)\n"))
+cat(sprintf("%.2f = (%.2f/%.2f) × %.3f + (%.2f/%.2f) × θ_C^(0)\n", 
+            theta_00, pi_NT, p_00, theta_NT_0, pi_C, p_00))
+cat(sprintf("%.2f = %.3f × %.3f + %.3f × θ_C^(0)\n", 
+            theta_00, weight_NT_in_z0a0, theta_NT_0, weight_C_in_z0a0))
 
-# For compliers under A=0: use P(Y=1|Z=0,A=0) = mixture
-# P(Y=1|Z=0,A=0) = P(Y=1|NN,A=0)*P(NN|Z=0,A=0) + P(Y=1|NY,A=0)*P(NY|Z=0,A=0)
-# P(NN|Z=0,A=0) = P(NN) / P(A=0|Z=0)
-# P(NY|Z=0,A=0) = P(NY) / P(A=0|Z=0)
+# Solving for theta_C_0
+theta_C_0 <- (theta_00 - weight_NT_in_z0a0 * theta_NT_0) / weight_C_in_z0a0
 
-p_nn_given_z0a0 <- p_never / p_za[1,1]
-p_ny_given_z0a0 <- p_compliers / p_za[1,1]
+cat(sprintf("θ_C^(0) = (%.2f - %.3f × %.3f) / %.3f = %.3f\n\n", 
+            theta_00, weight_NT_in_z0a0, theta_NT_0, weight_C_in_z0a0, theta_C_0))
 
-# theta_za[1,1] = theta_nn_0 * p_nn_given_z0a0 + theta_ny_0 * p_ny_given_z0a0
-# Solve for theta_ny_0 (compliers under control)
-theta_ny_0 <- (theta_za[1,1] - theta_nn_0 * p_nn_given_z0a0) / p_ny_given_z0a0
+# (Z=1,A=1) is mixture of AT and C
+weight_AT_in_z1a1 <- pi_AT / p_11  # = 0.70/0.90 = 7/9
+weight_C_in_z1a1 <- pi_C / p_11    # = 0.20/0.90 = 2/9
 
-# For compliers under A=1: use P(Y=1|Z=1,A=1) = mixture  
-# P(Y=1|Z=1,A=1) = P(Y=1|NY,A=1)*P(NY|Z=1,A=1) + P(Y=1|AY,A=1)*P(AY|Z=1,A=1)
-p_ny_given_z1a1 <- p_compliers / p_za[2,2]
-p_ay_given_z1a1 <- p_always / p_za[2,2]
+cat("Mixture equation for (Z=1,A=1):\n")
+cat(sprintf("θ_11 = π_AT/p_11 × θ_AT^(1) + π_C/p_11 × θ_C^(1)\n"))
+cat(sprintf("%.2f = (%.2f/%.2f) × %.3f + (%.2f/%.2f) × θ_C^(1)\n", 
+            theta_11, pi_AT, p_11, theta_AT_1, pi_C, p_11))
+cat(sprintf("%.2f = %.3f × %.3f + %.3f × θ_C^(1)\n", 
+            theta_11, weight_AT_in_z1a1, theta_AT_1, weight_C_in_z1a1))
 
-# Solve for theta_ny_1 (compliers under treatment)
-theta_ny_1 <- (theta_za[2,2] - theta_ay_1 * p_ay_given_z1a1) / p_ny_given_z1a1
+# Solving for theta_C_1
+theta_C_1 <- (theta_11 - weight_AT_in_z1a1 * theta_AT_1) / weight_C_in_z1a1
 
-# Complier Average Causal Effect (CACE)
-cace_ps <- theta_ny_1 - theta_ny_0
+cat(sprintf("θ_C^(1) = (%.2f - %.3f × %.3f) / %.3f = %.3f\n\n", 
+            theta_11, weight_AT_in_z1a1, theta_AT_1, weight_C_in_z1a1, theta_C_1))
+
+# Computing CACE
+cace_ps <- theta_C_1 - theta_C_0
 
 cat("Principal Stratification Results:\n")
-cat(sprintf("P(Y=1|Compliers, A=0) = %.4f\n", theta_ny_0))
-cat(sprintf("P(Y=1|Compliers, A=1) = %.4f\n", theta_ny_1))
-cat(sprintf("CACE = %.4f\n\n", cace_ps))
+cat(sprintf("θ_C^(0) (Compliers under control) = %.3f\n", theta_C_0))
+cat(sprintf("θ_C^(1) (Compliers under treatment) = %.3f\n", theta_C_1))
+cat(sprintf("CACE = θ_C^(1) - θ_C^(0) = %.3f - %.3f = %.3f\n\n", 
+            theta_C_1, theta_C_0, cace_ps))
 
 cat("METHOD 2: INSTRUMENTAL VARIABLES\n")
-# IV estimate: [E[Y|Z=1] - E[Y|Z=0]] / [E[A|Z=1] - E[A|Z=0]]
+cat("CACE = [E[Y|Z=1] - E[Y|Z=0]] / [E[A|Z=1] - E[A|Z=0]]\n\n")
 
-# Compute marginal expectations
-ey_z1 <- sum(p_za[2,] * theta_za[2,])  # E[Y|Z=1]
-ey_z0 <- sum(p_za[1,] * theta_za[1,])  # E[Y|Z=0]
-ea_z1 <- p_za[2,2]  # E[A|Z=1] = P(A=1|Z=1)
-ea_z0 <- p_za[1,2]  # E[A|Z=0] = P(A=1|Z=0)
+# Computing marginal expectations
+ey_z1 <- p_10 * theta_10 + p_11 * theta_11
+ey_z0 <- p_00 * theta_00 + p_01 * theta_01
+ea_z1 <- p_11  # P(A=1|Z=1)
+ea_z0 <- p_01  # P(A=1|Z=0)
 
+cat("Marginal outcome rates:\n")
+cat(sprintf("E[Y|Z=1] = p_10×θ_10 + p_11×θ_11 = %.2f×%.2f + %.2f×%.2f = %.3f\n", 
+            p_10, theta_10, p_11, theta_11, ey_z1))
+cat(sprintf("E[Y|Z=0] = p_00×θ_00 + p_01×θ_01 = %.2f×%.2f + %.2f×%.2f = %.3f\n", 
+            p_00, theta_00, p_01, theta_01, ey_z0))
+
+cat("\nMarginal treatment rates:\n")
+cat(sprintf("E[A|Z=1] = %.2f\n", ea_z1))
+cat(sprintf("E[A|Z=0] = %.2f\n\n", ea_z0))
+
+# Computing CACE using IV
 cace_iv <- (ey_z1 - ey_z0) / (ea_z1 - ea_z0)
 
 cat("Instrumental Variables Results:\n")
-cat(sprintf("E[Y|Z=1] = %.4f\n", ey_z1))
-cat(sprintf("E[Y|Z=0] = %.4f\n", ey_z0))
-cat(sprintf("E[A|Z=1] = %.4f\n", ea_z1))
-cat(sprintf("E[A|Z=0] = %.4f\n", ea_z0))
-cat(sprintf("CACE = (%.4f - %.4f) / (%.4f - %.4f) = %.4f\n", 
-            ey_z1, ey_z0, ea_z1, ea_z0, cace_iv))
+cat(sprintf("CACE = (%.3f - %.3f) / (%.2f - %.2f) = %.3f / %.2f = %.3f\n\n", 
+            ey_z1, ey_z0, ea_z1, ea_z0, ey_z1 - ey_z0, ea_z1 - ea_z0, cace_iv))
 
-cat(sprintf("\nBoth methods give CACE = %.4f\n", cace_iv))
+cat("VERIFICATION:\n")
+cat(sprintf("Both methods give identical CACE = %.3f\n", cace_iv))
+cat(sprintf("This represents a %.1f percentage point increase in hospitalization\n", cace_iv * 100))
+cat("for compliers who are induced by the letter to take the flu shot.\n")
 ```
 
-Using both principal stratification and instrumental variables methods, I found that the Complier Average Causal Effect (CACE) is `r sprintf("%.4f", cace_iv)`. This means that for individuals who are induced by the physician's letter to take the flu shot (compliers), the flu shot reduces their probability of hospitalization by approximately `r sprintf("%.1f", abs(cace_iv)*100)` percentage points. The negative effect suggests that flu shots are protective against hospitalization for this subgroup. Both methods yield identical results, which provides confidence in the estimate under the assumed monotonicity and exclusion restriction assumptions.
+Using both principal stratification and instrumental variables methods, I found that the Complier Average Causal Effect (CACE) is `r sprintf("%.3f", cace_iv)`. This means that for individuals who are induced by the physician's letter to take the flu shot (compliers), taking the flu shot **increases** their probability of hospitalization by `r sprintf("%.1f", cace_iv*100)` percentage points. 
 
-<function_calls>
-<invoke name="manage_todo_list">
-<parameter name="todoList">[{"description": "Inspect existing HW3.qmd content and restate questions with proper formatting", "id": 1, "title": "Review HW3.qmd and instructions", "status": "completed"}, {"description": "Derive bounds for theta_{00}^{(0)} and theta_{10}^{(0)} with math explanation and R verification", "id": 2, "title": "Solve Problem 1 bounds", "status": "completed"}, {"description": "Define principal strata, answer conceptual subquestions, assess assumptions", "id": 3, "title": "Analyze Problem 2 steps", "status": "completed"}, {"description": "Use principal stratification and IV formulas with given probabilities, include R code", "id": 4, "title": "Compute complier effect", "status": "completed"}, {"description": "Write answers, math (LaTeX), and code chunks using first-person tone", "id": 5, "title": "Update HW3.qmd narrative", "status": "completed"}, {"description": "Validate computations, ensure R code reproducible, summarize results", "id": 6, "title": "Quality check and summary", "status": "in-progress"}]
+This counterintuitive result suggests that for the 20% of the population who are compliers, the combination of receiving the encouragement letter and subsequently getting the flu shot is associated with a higher risk of hospitalization. This could be due to various factors such as: 
+1) compliers may be individuals with underlying health conditions who are more responsive to medical advice but also at higher baseline risk
+2) the timing of vaccination relative to flu season
+3) potential violations of the exclusion restriction if the letter has direct effects on healthcare-seeking behavior.
+
+Ok so both methods yield identical results (CACE = `r sprintf("%.3f", cace_iv)`), which provides confidence in the mathematical consistency of the estimate under the assumed monotonicity and exclusion restriction assumptions. However, the biological plausibility of this positive effect warrants careful interpretation and potential investigation of assumption validity.
+
