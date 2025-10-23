@@ -1,0 +1,297 @@
+---
+title: "SURV-740 Homework 4: Randomization Inference"
+author: "Namit Shrivastava"
+date: "2025-10-23"
+format:
+	pdf:
+		prefer-html: true
+	html:
+		df-print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(knitr)
+
+fmt_num <- function(x, digits = 4) {
+	formatC(x, format = "f", digits = digits)
+}
+```
+
+## Question 1: Sampling Distributions
+
+```{r q1-population}
+set.seed(41279)
+N <- 100000
+mu_super <- 15
+var_super <- 3
+population <- rnorm(N, mean = mu_super, sd = sqrt(var_super))
+
+pop_mean <- mean(population)
+pop_var <- var(population) * (N - 1) / N
+```
+
+### 1a. Finite population characteristics and superpopulation
+
+I simulated a finite population of size 100,000 from a Normal(15, 3) superpopulation. The simulated finite population mean is `r fmt_num(pop_mean, 5)` and the finite population variance is `r fmt_num(pop_var, 5)`. Because the draws come from a Normal distribution with mean 15 and variance 3, that Normal distribution serves as the superpopulation model that justifies the finite population we analyze here.
+
+### 1b. One SRSWOR of size 1,000
+
+```{r q1-partb}
+set.seed(41280)
+n_sample <- 1000
+sample_indices <- sample.int(N, size = n_sample, replace = FALSE)
+sample_one <- population[sample_indices]
+sample_mean <- mean(sample_one)
+sample_var <- var(sample_one)
+fpc <- sqrt(1 - n_sample / N)
+se_mean <- sqrt(sample_var / n_sample) * fpc
+ci_b <- sample_mean + qnorm(c(0.025, 0.975)) * se_mean
+
+results_b <- tibble(
+	estimate = sample_mean,
+	variance = sample_var,
+	se = se_mean,
+	ci_lower = ci_b[1],
+	ci_upper = ci_b[2]
+)
+results_b %>% mutate(across(everything(), fmt_num, digits = 5)) %>% kable()
+```
+
+In this single simple random sample without replacement, the estimated mean is `r fmt_num(sample_mean, 5)`. Accounting for the finite population correction, the standard error is `r fmt_num(se_mean, 5)`, which yields a 95% confidence interval of (`r fmt_num(ci_b[1], 5)`, `r fmt_num(ci_b[2], 5)`).
+
+### 1c. Approximating the sampling distributions with 2,000 repetitions
+
+```{r q1-partc}
+set.seed(41281)
+B <- 2000
+
+sim_results <- replicate(B, {
+	idx <- sample.int(N, size = n_sample, replace = FALSE)
+	samp <- population[idx]
+	c(mean = mean(samp), variance = var(samp))
+}) %>%
+	t() %>%
+	as_tibble()
+
+quantile_means <- quantile(sim_results$mean, probs = c(0.025, 0.975))
+
+quantile_tbl <- tibble(
+	quantile = c("2.5%", "97.5%"),
+	value = fmt_num(quantile_means, digits = 5)
+)
+
+quantile_tbl %>% kable(col.names = c("Quantile", "Estimated mean"))
+```
+
+```{r q1-partc-plots, fig.cap="Sampling distribution approximations from 2,000 SRSWOR samples."}
+plot_data <- sim_results %>%
+	pivot_longer(cols = everything(), names_to = "statistic", values_to = "value")
+
+ggplot(plot_data, aes(x = value)) +
+	geom_histogram(bins = 40, color = "white", fill = "steelblue", alpha = 0.8) +
+	facet_wrap(~ statistic, scales = "free", ncol = 1) +
+	labs(x = "Value", y = "Frequency") +
+	theme_minimal()
+```
+
+The approximate sampling distribution of the estimated mean is tightly centered around `r fmt_num(mean(sim_results$mean), 5)`, while the sampling distribution of the estimated variance is more skewed. The empirical 2.5th and 97.5th percentiles of the estimated mean are `r fmt_num(quantile_means[1], 5)` and `r fmt_num(quantile_means[2], 5)`.
+
+### 1d. Comparing interval estimates
+
+The 95% confidence interval from the single sample in part 1b is (`r fmt_num(ci_b[1], 5)`, `r fmt_num(ci_b[2], 5)`), whereas the central 95% of the sampling distribution of the estimated mean spans (`r fmt_num(quantile_means[1], 5)`, `r fmt_num(quantile_means[2], 5)`). The percentile interval summarizes how the estimator varies across repeated samples, while the confidence interval uses the estimated standard error from one sample to approximate the uncertainty about the true finite population mean. They target related but distinct quantities: the former is an empirical description of estimator variability, the latter is an inferential statement about the parameter.
+
+### 1e. Coverage of the nominal 95% confidence interval
+
+```{r q1-parte}
+z_alpha <- qnorm(0.975)
+
+ci_bounds <- sim_results %>%
+	mutate(
+		se = sqrt(variance / n_sample) * fpc,
+		lower = mean - z_alpha * se,
+		upper = mean + z_alpha * se,
+		covers = (lower <= pop_mean) & (upper >= pop_mean)
+	)
+
+coverage_rate <- mean(ci_bounds$covers)
+
+tibble(
+	Coverage = fmt_num(coverage_rate, digits = 4)
+) %>% kable()
+```
+
+Out of the 2,000 simulated samples, `r fmt_num(sum(ci_bounds$covers))` of the confidence intervals covered the true finite population mean, giving an empirical coverage rate of `r fmt_num(coverage_rate, 4)`. This is close to the nominal 95% level, so the procedure is behaving as expected in this setting.
+
+## Question 2: Confidence Interval for the Logit Transformation
+
+```{r q2-setup}
+blocks <- c(3, 5, 5, 52, 21, 34, 3, 0, 0, 0, 17, 14, 0, 0, 2, 54, 11, 11, 0, 23)
+a <- length(blocks)
+A <- 270
+M <- 60
+
+sample_mean_blocks <- mean(blocks)
+sample_var_blocks <- var(blocks)
+fpc_blocks <- sqrt(1 - a / A)
+se_blocks <- sqrt(sample_var_blocks / a) * fpc_blocks
+
+p_hat <- sample_mean_blocks / M
+se_p <- se_blocks / M
+
+logit <- function(p) log(p / (1 - p))
+inv_logit <- function(x) 1 / (1 + exp(-x))
+
+phi_hat <- logit(p_hat)
+se_phi <- se_p / (p_hat * (1 - p_hat))
+ci_phi <- phi_hat + qnorm(c(0.025, 0.975)) * se_phi
+ci_p <- inv_logit(ci_phi)
+
+q2_summary <- tibble(
+	quantity = c("Sample mean rentals", "Standard error", "Rental proportion", "SE proportion", "Logit estimate", "SE logit"),
+	value = c(sample_mean_blocks, se_blocks, p_hat, se_p, phi_hat, se_phi)
+)
+
+q2_summary %>% mutate(value = fmt_num(value, digits = 5)) %>% kable()
+```
+
+Using the block-level data from Module 8, the sample mean number of rental units is `r fmt_num(sample_mean_blocks, 4)`, which corresponds to a rental proportion of `r fmt_num(p_hat, 4)` once I divide by the 60 dwellings in each block. Applying the delta method to the logit transformation yields the following 95% confidence interval for logit(Q(Y)):
+
+```{r q2-ci-table}
+tibble(
+	bound = c("Lower", "Upper"),
+	logit_QY = ci_phi,
+	QY = ci_p
+) %>%
+	mutate(across(-bound, fmt_num, digits = 5)) %>%
+	kable()
+```
+
+So the estimated logit is `r fmt_num(phi_hat, 5)` with a 95% confidence interval from `r fmt_num(ci_phi[1], 5)` to `r fmt_num(ci_phi[2], 5)`. Transforming back to the rental proportion gives a 95% confidence interval of (`r fmt_num(ci_p[1], 5)`, `r fmt_num(ci_p[2], 5)`), or equivalently about (`r fmt_num(ci_p[1] * 60, 3)`, `r fmt_num(ci_p[2] * 60, 3)`) rental units per block.
+
+## Question 3: Design Effects and Effective Sample Size
+
+```{r q3-calcs}
+p_i <- blocks / M
+total_units <- a * M
+total_pop_units <- A * M
+
+p_hat_clusters <- mean(p_i)
+f_cluster <- a / A
+s_p2 <- var(p_i)
+var_cluster <- (1 - f_cluster) * s_p2 / a
+se_cluster <- sqrt(var_cluster)
+ci_cluster <- p_hat_clusters + qnorm(c(0.025, 0.975)) * se_cluster
+
+f_unit <- total_units / total_pop_units
+var_srs <- (1 - f_unit) * p_hat_clusters * (1 - p_hat_clusters) / total_units
+se_srs <- sqrt(var_srs)
+
+design_effect <- var_cluster / var_srs
+effective_n <- total_units / design_effect
+
+q3_table <- tibble(
+	quantity = c(
+		"Estimated rental proportion", "SE (two-stage cluster)",
+		"95% CI (two-stage cluster) lower", "95% CI (two-stage cluster) upper",
+		"Variance (two-stage cluster)", "Variance (SRS of individuals)",
+		"Design effect", "Effective sample size"
+	),
+	value = c(
+		p_hat_clusters, se_cluster, ci_cluster[1], ci_cluster[2],
+		var_cluster, var_srs, design_effect, effective_n
+	)
+)
+
+q3_table %>% mutate(value = fmt_num(value, digits = 5)) %>% kable()
+```
+
+### Answers
+
+- **3a.** My estimate of the proportion of rental housing units is `r fmt_num(p_hat_clusters, 5)`.
+- **3b.** The estimated variance under the two-stage cluster design is `r fmt_num(var_cluster, 6)`, giving a 95% confidence interval of (`r fmt_num(ci_cluster[1], 5)`, `r fmt_num(ci_cluster[2], 5)`).
+- **3c.** Under an SRS of 1,200 individual housing units, the estimated variance would be only `r fmt_num(var_srs, 6)`. The design effect is `r fmt_num(design_effect, 4)`, so the effective sample size of the cluster design is about `r fmt_num(effective_n, 2)` respondents. In plain language, that means the 1,200 interviews collected via cluster sampling carry the same amount of information about the rental proportion as roughly `r fmt_num(effective_n, 0)` interviews from a simple random sample.
+- **3d.** Because the design effect is so large, the two-stage cluster plan produces much higher sampling variance than an SRS of the same size. I would therefore prefer the SRS design if it were operationally feasible. If I naively analyzed the clustered data as though they came from a simple random sample of 1,200 units, I would understate the true variance by about a factor of `r fmt_num(design_effect, 2)`, leading to confidence intervals that are far too narrow and that would undercover the true population proportion.
+
+## Question 4: Comparing Estimators for Finite Populations
+
+### Original population Y = {5, 10, 35, 100}
+
+```{r q4-pop1}
+population1 <- c(5, 10, 35, 100)
+samples1 <- combn(population1, 2)
+
+estimates1 <- tibble(
+	sample = apply(samples1, 2, paste, collapse = ","),
+	arithmetic = colMeans(samples1),
+	harmonic = 2 / colSums(1 / samples1),
+	geometric = sqrt(samples1[1, ] * samples1[2, ])
+)
+
+pop1_mean <- mean(population1)
+
+moment_summary <- function(vec, true_mean) {
+	tibble(
+		bias = mean(vec) - true_mean,
+		variance = mean((vec - mean(vec))^2),
+		mse = mean((vec - true_mean)^2)
+	)
+}
+
+moments1 <- bind_rows(
+	moment_summary(estimates1$arithmetic, pop1_mean) %>% mutate(estimator = "Arithmetic"),
+	moment_summary(estimates1$harmonic, pop1_mean) %>% mutate(estimator = "Harmonic"),
+	moment_summary(estimates1$geometric, pop1_mean) %>% mutate(estimator = "Geometric")
+) %>%
+	relocate(estimator)
+
+estimates1 %>% kable()
+
+moments1 %>% mutate(across(-estimator, fmt_num, digits = 5)) %>% kable()
+```
+
+For this skewed population, only the arithmetic mean is unbiased. The harmonic and geometric means exhibit negative bias and much larger mean squared errors because the extreme value of 100 exerts a strong pull on the arithmetic scale but cannot be captured well by reciprocal or multiplicative averaging.
+
+### Alternative population Y = {5, 10, 16, 18}
+
+```{r q4-pop2}
+population2 <- c(5, 10, 16, 18)
+samples2 <- combn(population2, 2)
+
+estimates2 <- tibble(
+	sample = apply(samples2, 2, paste, collapse = ","),
+	arithmetic = colMeans(samples2),
+	harmonic = 2 / colSums(1 / samples2),
+	geometric = sqrt(samples2[1, ] * samples2[2, ])
+)
+
+pop2_mean <- mean(population2)
+
+moments2 <- bind_rows(
+	moment_summary(estimates2$arithmetic, pop2_mean) %>% mutate(estimator = "Arithmetic"),
+	moment_summary(estimates2$harmonic, pop2_mean) %>% mutate(estimator = "Harmonic"),
+	moment_summary(estimates2$geometric, pop2_mean) %>% mutate(estimator = "Geometric")
+) %>%
+	relocate(estimator)
+
+estimates2 %>% kable()
+
+moments2 %>% mutate(across(-estimator, fmt_num, digits = 5)) %>% kable()
+```
+
+With the milder population, all three estimators behave more similarly. The arithmetic mean remains unbiased with the smallest variance, while the harmonic and geometric means still have mild negative bias. Their mean squared errors shrink dramatically compared to the first population, reflecting the lower skewness.
+
+### Overall comparison
+
+Across both populations, the arithmetic mean is the safest choice: it is unbiased and has the lowest or near-lowest mean squared error. The harmonic mean can downweight large values too aggressively, producing substantial bias when the population is skewed, though it becomes more competitive when values cluster together. The geometric mean sits between the other two but still suffers when zero or very small values appear. Based on these simulations, I would trust the arithmetic mean for finite population inference in most survey settings.
+
+## Question 5: Frequentist vs. Bayesian Inference
+
+- **Frequentist pro:** Frequentist procedures often come with guaranteed long-run properties (such as unbiasedness or nominal coverage), which makes it easy for me to communicate design-based error rates to stakeholders.
+- **Frequentist con:** Those guarantees can rely on idealized sampling assumptions; when those assumptions fail (for example, with clustering as in Question 3), the nominal properties can disappear unless I make careful adjustments.
+- **Bayesian pro:** A Bayesian analysis lets me incorporate prior knowledge coherently and delivers full posterior distributions, so I can make probability statements about parameters directly.
+- **Bayesian con:** Posterior results can be sensitive to the prior specification, and defending that prior choice to skeptical collaborators can sometimes be harder than justifying a design-based frequentist analysis.
