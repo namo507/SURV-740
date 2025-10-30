@@ -1,7 +1,7 @@
 ---
 title: "SURV-740 Homework 4: Randomization Inference"
 author: "Namit Shrivastava"
-date: "2025-10-23"
+date: "2025-10-30"
 format: 
   pdf:
     prefer-html: true
