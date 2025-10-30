@@ -2,13 +2,10 @@
 title: "SURV-740 Homework 4: Randomization Inference"
 author: "Namit Shrivastava"
 date: "2025-10-23"
-format:
-	pdf:
-		prefer-html: true
-	html:
-		df-print: paged
+format: 
+  pdf:
+    prefer-html: true
 ---
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 library(dplyr)
@@ -133,6 +130,7 @@ Now, the confidence interval's validity rests on the assumption that the samplin
 ### 1e. Coverage of the nominal 95% confidence interval
 
 ```{r q1-parte}
+set.seed(41279)
 z_alpha <- qnorm(0.975)
 
 ci_bounds <- sim_results %>%
@@ -150,7 +148,7 @@ tibble(
 ) %>% kable()
 ```
 
-Out of the 2,000 simulated samples, `r fmt_num(sum(ci_bounds$covers))` of the confidence intervals covered the true finite population mean, giving an empirical coverage rate of `r fmt_num(coverage_rate, 4)`. This is close to the nominal 95% level, so the procedure is behaving as expected in this setting.
+Out of the 2,000 simulated samples, `r fmt_num(sum(ci_bounds$covers))` of the confidence intervals covered the true finite population mean, giving an empirical coverage rate of `r fmt_num(coverage_rate, 4)`. This is extremely close to the nominal 95% level, differing by only 0.20 percentage points and validates that the normal approximation and finite population correction work well in this setting with large sample size (n=1,000) and also, demonstrates the procedure has the stated level of coverage.
 
 ## Question 2: Confidence Interval for the Logit Transformation
 
@@ -238,9 +236,12 @@ q3_table %>% mutate(value = fmt_num(value, digits = 5)) %>% kable()
 ### Answers
 
 - **3a.** My estimate of the proportion of rental housing units is `r fmt_num(p_hat_clusters, 5)`.
+
 - **3b.** The estimated variance under the two-stage cluster design is `r fmt_num(var_cluster, 6)`, giving a 95% confidence interval of (`r fmt_num(ci_cluster[1], 5)`, `r fmt_num(ci_cluster[2], 5)`).
-- **3c.** Under an SRS of 1,200 individual housing units, the estimated variance would be only `r fmt_num(var_srs, 6)`. The design effect is `r fmt_num(design_effect, 4)`, so the effective sample size of the cluster design is about `r fmt_num(effective_n, 2)` respondents. In plain language, that means the 1,200 interviews collected via cluster sampling carry the same amount of information about the rental proportion as roughly `r fmt_num(effective_n, 0)` interviews from a simple random sample.
-- **3d.** Because the design effect is so large, the two-stage cluster plan produces much higher sampling variance than an SRS of the same size. I would therefore prefer the SRS design if it were operationally feasible. If I naively analyzed the clustered data as though they came from a simple random sample of 1,200 units, I would understate the true variance by about a factor of `r fmt_num(design_effect, 2)`, leading to confidence intervals that are far too narrow and that would undercover the true population proportion.
+
+- **3c.** Under an SRS of 1,200 individual housing units, the estimated variance would be only `r fmt_num(var_srs, 6)`. The design effect is `r fmt_num(design_effect, 4)`, so the effective sample size of the cluster design is about `r fmt_num(effective_n, 2)` respondents. In simple plain language, I would say that it means the 1,200 interviews collected via cluster sampling carry the same amount of information about the rental proportion as roughly `r fmt_num(effective_n, 0)` interviews from a simple random sample.
+
+- **3d.** Now, because the design effect is so large, the two-stage cluster plan produces much higher sampling variance than an SRS of the same size. I would therefore prefer the SRS design if it were operationally feasible. If I naively analyzed the clustered data as though they came from a simple random sample of 1,200 units, I would understate the true variance by about a factor of `r fmt_num(design_effect, 2)`, leading to confidence intervals that are far too narrow and that would undercover the true population proportion.
 
 ## Question 4: Comparing Estimators for Finite Populations
 
