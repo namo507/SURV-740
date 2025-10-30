@@ -37,15 +37,35 @@ pop_var <- var(population) * (N - 1) / N
 
 ### 1a. Finite population characteristics and superpopulation
 
-I simulated a finite population of size 100,000 from a Normal(15, 3) superpopulation. The simulated finite population mean is `r fmt_num(pop_mean, 5)` and the finite population variance is `r fmt_num(pop_var, 5)`. Because the draws come from a Normal distribution with mean 15 and variance 3, that Normal distribution serves as the superpopulation model that justifies the finite population we analyze here.
+```{r}
+set.seed(41279)
+N <- 100000
+mu_super <- 15
+var_super <- 3
+population <- rnorm(N, mean = mu_super, sd = sqrt(var_super))
+
+# Part (a)
+pop_mean <- mean(population)
+pop_var <- var(population) * (N - 1) / N
+
+results_a <- tibble(
+  pop_mean = pop_mean,
+  pop_var = pop_var
+)
+
+results_a %>% mutate(across(everything(), fmt_num, digits = 5)) %>% kable()
+```
+
+I simulated a finite population of size 100,000 from a Normal(15, 3) superpopulation. The simulated finite population mean is `r fmt_num(pop_mean, 5)` and the finite population variance is `r fmt_num(pop_var, 5)`. Now, because the draws come from a Normal distribution with mean 15 and variance 3, that Normal distribution here serves as the superpopulation model that justifies the finite population that I analyzed here.
 
 ### 1b. One SRSWOR of size 1,000
 
-```{r q1-partb}
-set.seed(41280)
+```{r}
+set.seed(41279)
 n_sample <- 1000
 sample_indices <- sample.int(N, size = n_sample, replace = FALSE)
 sample_one <- population[sample_indices]
+
 sample_mean <- mean(sample_one)
 sample_var <- var(sample_one)
 fpc <- sqrt(1 - n_sample / N)
@@ -53,21 +73,21 @@ se_mean <- sqrt(sample_var / n_sample) * fpc
 ci_b <- sample_mean + qnorm(c(0.025, 0.975)) * se_mean
 
 results_b <- tibble(
-	estimate = sample_mean,
-	variance = sample_var,
-	se = se_mean,
-	ci_lower = ci_b[1],
-	ci_upper = ci_b[2]
+  estimate = sample_mean,
+  se = se_mean,
+  ci_lower = ci_b[1],
+  ci_upper = ci_b[2]
 )
+
 results_b %>% mutate(across(everything(), fmt_num, digits = 5)) %>% kable()
 ```
 
-In this single simple random sample without replacement, the estimated mean is `r fmt_num(sample_mean, 5)`. Accounting for the finite population correction, the standard error is `r fmt_num(se_mean, 5)`, which yields a 95% confidence interval of (`r fmt_num(ci_b[1], 5)`, `r fmt_num(ci_b[2], 5)`).
+In this single simple random sample without replacement, the estimated mean is `r fmt_num(sample_mean, 5)`. Now after accounting for the finite population correction, the standard error is `r fmt_num(se_mean, 5)`, which in turn yields a 95% confidence interval of (`r fmt_num(ci_b[1], 5)`, `r fmt_num(ci_b[2], 5)`).
 
 ### 1c. Approximating the sampling distributions with 2,000 repetitions
 
 ```{r q1-partc}
-set.seed(41281)
+set.seed(41279)
 B <- 2000
 
 sim_results <- replicate(B, {
@@ -103,7 +123,12 @@ The approximate sampling distribution of the estimated mean is tightly centered 
 
 ### 1d. Comparing interval estimates
 
-The 95% confidence interval from the single sample in part 1b is (`r fmt_num(ci_b[1], 5)`, `r fmt_num(ci_b[2], 5)`), whereas the central 95% of the sampling distribution of the estimated mean spans (`r fmt_num(quantile_means[1], 5)`, `r fmt_num(quantile_means[2], 5)`). The percentile interval summarizes how the estimator varies across repeated samples, while the confidence interval uses the estimated standard error from one sample to approximate the uncertainty about the true finite population mean. They target related but distinct quantities: the former is an empirical description of estimator variability, the latter is an inferential statement about the parameter.
+The 95% confidence interval from the single sample in part 1b is (`r fmt_num(ci_b[1], 5)`, `r fmt_num(ci_b[2], 5)`), whereas the central 95% of the sampling distribution of the estimated mean spans (`r fmt_num(quantile_means[1], 5)`, `r fmt_num(quantile_means[2], 5)`). 
+So, the percentile interval here summarizes how the estimator varies across repeated samples, while the confidence interval uses the estimated standard error from one sample to approximate the uncertainty about the true finite population mean. Now they target related but distinct quantities i.e., the former is an empirical description of estimator variability, while the latter is an inferential statement about the parameter.
+
+Now to be more precise, the confidence interval (part b) makes an inferential statement about the unknown finite population mean, it estimates where μ likely falls based on one observed sample and uses the sample's standard error. Meanwhile, the percentile interval (part c) is a descriptive summary of the sampling distribution that shows where sample means actually fall across 2,000 repeated samples.
+
+Now, the confidence interval's validity rests on the assumption that the sampling distribution is approximately normal, which actually the percentile interval empirically validates. So, both intervals are similar because the normal approximation works well for large samples (n=1,000), demonstrating that the theoretical standard error from part (b) accurately characterizes the variability observed in the simulated sampling distribution.
 
 ### 1e. Coverage of the nominal 95% confidence interval
 
