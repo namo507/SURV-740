@@ -313,11 +313,12 @@ With the milder population, all three estimators behave more similarly. The arit
 
 ### Overall comparison
 
-Across both populations, the arithmetic mean is the safest choice: it is unbiased and has the lowest or near-lowest mean squared error. The harmonic mean can downweight large values too aggressively, producing substantial bias when the population is skewed, though it becomes more competitive when values cluster together. The geometric mean sits between the other two but still suffers when zero or very small values appear. Based on these simulations, I would trust the arithmetic mean for finite population inference in most survey settings.
+For finite population inference in survey settings, the arithmetic mean is the most defensible choice because it is unbiased regardless of population shape. While the geometric mean can have lower MSE in highly skewed populations as is seen in Population 1, this advantage relies on knowing the population's skewness in advance, like something typically unavailable in practice. 
+The harmonic mean should generally be avoided due to severe downward bias on skewed populations. Hence, the arithmetic mean's unbiasedness property, combined with its design-based justification in simple random sampling, makes it the preferred estimator for most applications.
 
 ## Question 5: Frequentist vs. Bayesian Inference
 
 - **Frequentist pro:** Frequentist procedures often come with guaranteed long-run properties (such as unbiasedness or nominal coverage), which makes it easy for me to communicate design-based error rates to stakeholders.
-- **Frequentist con:** Those guarantees can rely on idealized sampling assumptions; when those assumptions fail (for example, with clustering as in Question 3), the nominal properties can disappear unless I make careful adjustments.
+- **Frequentist con:** Those guarantees can rely on idealized sampling assumptions; when those assumptions fail like I was thinking for example, with clustering as in Question 3, the nominal properties can disappear unless I make careful adjustments.
 - **Bayesian pro:** A Bayesian analysis lets me incorporate prior knowledge coherently and delivers full posterior distributions, so I can make probability statements about parameters directly.
 - **Bayesian con:** Posterior results can be sensitive to the prior specification, and defending that prior choice to skeptical collaborators can sometimes be harder than justifying a design-based frequentist analysis.
