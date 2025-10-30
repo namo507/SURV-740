@@ -19,7 +19,7 @@ fmt_num <- function(x, digits = 4) {
 }
 ```
 
-## Question 1: Sampling Distributions
+## Question 1
 
 ```{r q1-population}
 set.seed(41279)
@@ -32,7 +32,7 @@ pop_mean <- mean(population)
 pop_var <- var(population) * (N - 1) / N
 ```
 
-### 1a. Finite population characteristics and superpopulation
+### 1a
 
 ```{r}
 set.seed(41279)
@@ -55,7 +55,7 @@ results_a %>% mutate(across(everything(), fmt_num, digits = 5)) %>% kable()
 
 I simulated a finite population of size 100,000 from a Normal(15, 3) superpopulation. The simulated finite population mean is `r fmt_num(pop_mean, 5)` and the finite population variance is `r fmt_num(pop_var, 5)`. Now, because the draws come from a Normal distribution with mean 15 and variance 3, that Normal distribution here serves as the superpopulation model that justifies the finite population that I analyzed here.
 
-### 1b. One SRSWOR of size 1,000
+### 1b
 
 ```{r}
 set.seed(41279)
@@ -81,7 +81,7 @@ results_b %>% mutate(across(everything(), fmt_num, digits = 5)) %>% kable()
 
 In this single simple random sample without replacement, the estimated mean is `r fmt_num(sample_mean, 5)`. Now after accounting for the finite population correction, the standard error is `r fmt_num(se_mean, 5)`, which in turn yields a 95% confidence interval of (`r fmt_num(ci_b[1], 5)`, `r fmt_num(ci_b[2], 5)`).
 
-### 1c. Approximating the sampling distributions with 2,000 repetitions
+### 1c
 
 ```{r q1-partc}
 set.seed(41279)
@@ -118,7 +118,7 @@ ggplot(plot_data, aes(x = value)) +
 
 The approximate sampling distribution of the estimated mean is tightly centered around `r fmt_num(mean(sim_results$mean), 5)`, while the sampling distribution of the estimated variance is more skewed. The empirical 2.5th and 97.5th percentiles of the estimated mean are `r fmt_num(quantile_means[1], 5)` and `r fmt_num(quantile_means[2], 5)`.
 
-### 1d. Comparing interval estimates
+### 1d
 
 The 95% confidence interval from the single sample in part 1b is (`r fmt_num(ci_b[1], 5)`, `r fmt_num(ci_b[2], 5)`), whereas the central 95% of the sampling distribution of the estimated mean spans (`r fmt_num(quantile_means[1], 5)`, `r fmt_num(quantile_means[2], 5)`). 
 So, the percentile interval here summarizes how the estimator varies across repeated samples, while the confidence interval uses the estimated standard error from one sample to approximate the uncertainty about the true finite population mean. Now they target related but distinct quantities i.e., the former is an empirical description of estimator variability, while the latter is an inferential statement about the parameter.
@@ -127,7 +127,7 @@ Now to be more precise, the confidence interval (part b) makes an inferential 
 
 Now, the confidence interval's validity rests on the assumption that the sampling distribution is approximately normal, which actually the percentile interval empirically validates. So, both intervals are similar because the normal approximation works well for large samples (n=1,000), demonstrating that the theoretical standard error from part (b) accurately characterizes the variability observed in the simulated sampling distribution.
 
-### 1e. Coverage of the nominal 95% confidence interval
+### 1e
 
 ```{r q1-parte}
 set.seed(41279)
@@ -150,7 +150,10 @@ tibble(
 
 Out of the 2,000 simulated samples, `r fmt_num(sum(ci_bounds$covers))` of the confidence intervals covered the true finite population mean, giving an empirical coverage rate of `r fmt_num(coverage_rate, 4)`. This is extremely close to the nominal 95% level, differing by only 0.20 percentage points and validates that the normal approximation and finite population correction work well in this setting with large sample size (n=1,000) and also, demonstrates the procedure has the stated level of coverage.
 
-## Question 2: Confidence Interval for the Logit Transformation
+
+
+
+## Question 2
 
 ```{r q2-setup}
 blocks <- c(3, 5, 5, 52, 21, 34, 3, 0, 0, 0, 17, 14, 0, 0, 2, 54, 11, 11, 0, 23)
@@ -196,7 +199,10 @@ tibble(
 
 So the estimated logit is `r fmt_num(phi_hat, 5)` with a 95% confidence interval from `r fmt_num(ci_phi[1], 5)` to `r fmt_num(ci_phi[2], 5)`. Transforming back to the rental proportion gives a 95% confidence interval of (`r fmt_num(ci_p[1], 5)`, `r fmt_num(ci_p[2], 5)`), or equivalently about (`r fmt_num(ci_p[1] * 60, 3)`, `r fmt_num(ci_p[2] * 60, 3)`) rental units per block.
 
-## Question 3: Design Effects and Effective Sample Size
+
+
+
+## Question 3
 
 ```{r q3-calcs}
 p_i <- blocks / M
@@ -243,7 +249,10 @@ q3_table %>% mutate(value = fmt_num(value, digits = 5)) %>% kable()
 
 - **3d.** Now, because the design effect is so large, the two-stage cluster plan produces much higher sampling variance than an SRS of the same size. I would therefore prefer the SRS design if it were operationally feasible. If I naively analyzed the clustered data as though they came from a simple random sample of 1,200 units, I would understate the true variance by about a factor of `r fmt_num(design_effect, 2)`, leading to confidence intervals that are far too narrow and that would undercover the true population proportion.
 
-## Question 4: Comparing Estimators for Finite Populations
+
+
+
+## Question 4
 
 ### Original population Y = {5, 10, 35, 100}
 
@@ -316,7 +325,10 @@ With the milder population, all three estimators behave more similarly. The arit
 For finite population inference in survey settings, the arithmetic mean is the most defensible choice because it is unbiased regardless of population shape. While the geometric mean can have lower MSE in highly skewed populations as is seen in Population 1, this advantage relies on knowing the population's skewness in advance, like something typically unavailable in practice. 
 The harmonic mean should generally be avoided due to severe downward bias on skewed populations. Hence, the arithmetic mean's unbiasedness property, combined with its design-based justification in simple random sampling, makes it the preferred estimator for most applications.
 
-## Question 5: Frequentist vs. Bayesian Inference
+
+
+
+## Question 5
 
 - **Frequentist pro:** Frequentist procedures often come with guaranteed long-run properties (such as unbiasedness or nominal coverage), which makes it easy for me to communicate design-based error rates to stakeholders.
 - **Frequentist con:** Those guarantees can rely on idealized sampling assumptions; when those assumptions fail like I was thinking for example, with clustering as in Question 3, the nominal properties can disappear unless I make careful adjustments.
