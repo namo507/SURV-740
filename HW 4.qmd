@@ -199,7 +199,19 @@ tibble(
 
 So the estimated logit is `r fmt_num(phi_hat, 5)` with a 95% confidence interval from `r fmt_num(ci_phi[1], 5)` to `r fmt_num(ci_phi[2], 5)`. Transforming back to the rental proportion gives a 95% confidence interval of (`r fmt_num(ci_p[1], 5)`, `r fmt_num(ci_p[2], 5)`), or equivalently about (`r fmt_num(ci_p[1] * 60, 3)`, `r fmt_num(ci_p[2] * 60, 3)`) rental units per block.
 
+```{r q2-nonrenting}
+nonrenting_hat <- 1 - p_hat
+ci_nonrenting <- 1 - rev(ci_p)
 
+tibble(
+  bound = c("Lower", "Upper"),
+  nonrenting = ci_nonrenting
+) %>%
+  mutate(across(-bound, fmt_num, digits = 5)) %>%
+  kable()
+```
+
+The estimated non-renting proportion is `r fmt_num(nonrenting_hat, 5)` with a 95% confidence interval from `r fmt_num(ci_nonrenting[1], 5)` to `r fmt_num(ci_nonrenting[2], 5)`, corresponding to (`r fmt_num(ci_nonrenting[1] * 60, 3)`, `r fmt_num(ci_nonrenting[2] * 60, 3)`) non-rental units per block.
 
 
 ## Question 3
